@@ -1,0 +1,360 @@
+// Attendance service data model (Section 25).
+//
+// Milestone 2 models the entities the attendance workflow actually exercises.
+// `reports` and `risk_predictions` from Section 25 are deliberately absent
+// until Milestone 3 builds the features that populate them - an empty table no
+// code writes to is dead weight, not architecture.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+  // Declared so the column never has to be migrated to add it (Section 13).
+  PARENT
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+enum SessionStatus {
+  ACTIVE
+  CLOSED
+}
+
+/// How an attendance record came to exist. Manual entries are visibly
+/// distinguishable from scanned ones so an audit can tell them apart.
+enum AttendanceMethod {
+  QR_VERIFIED
+  MANUAL
+}
+
+model Institution {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  emailDomain String   @map("email_domain")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  departments Department[]
+  users       User[]
+
+  @@map("institutions")
+}
+
+model Department {
+  id            String @id @default(uuid())
+  institutionId String @map("institution_id")
+  name          String
+  code          String
+
+  institution   Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  classSections ClassSection[]
+  subjects      Subject[]
+  teachers      Teacher[]
+
+  @@unique([institutionId, code])
+  @@map("departments")
+}
+
+/// A cohort: department + year + section, e.g. CSE / III / A.
+model ClassSection {
+  id           String @id @default(uuid())
+  departmentId String @map("department_id")
+  year         Int
+  section      String
+
+  department         Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  students           Student[]
+  enrollments        Enrollment[]
+  timetableSlots     TimetableSlot[]
+  attendanceSessions AttendanceSession[]
+
+  @@unique([departmentId, year, section])
+  @@map("class_sections")
+}
+
+model Subject {
+  id           String @id @default(uuid())
+  departmentId String @map("department_id")
+  code         String
+  name         String
+
+  department         Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  enrollments        Enrollment[]
+  timetableSlots     TimetableSlot[]
+  attendanceSessions AttendanceSession[]
+  attendanceRecords  AttendanceRecord[]
+  teachers           TeacherSubject[]
+
+  @@unique([departmentId, code])
+  @@map("subjects")
+}
+
+model User {
+  id            String        @id @default(uuid())
+  institutionId String        @map("institution_id")
+  email         String        @unique
+  passwordHash  String        @map("password_hash")
+  role          UserRole
+  status        AccountStatus @default(ACTIVE)
+  displayName   String        @map("display_name")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  institution   Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  student       Student?
+  teacher       Teacher?
+  administrator Administrator?
+  refreshTokens RefreshToken[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([institutionId])
+  @@map("users")
+}
+
+/// Refresh tokens are stored hashed so a database read cannot be replayed as a
+/// login (Section 34).
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Student {
+  id             String @id @default(uuid())
+  userId         String @unique @map("user_id")
+  classSectionId String @map("class_section_id")
+  registerNumber String @unique @map("register_number")
+  name           String
+  avatarSeed     String @map("avatar_seed")
+
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classSection      ClassSection           @relation(fields: [classSectionId], references: [id])
+  enrollments       Enrollment[]
+  attendanceRecords AttendanceRecord[]
+  attendanceTokens  AttendanceToken[]
+
+  @@index([classSectionId])
+  @@map("students")
+}
+
+model Teacher {
+  id           String @id @default(uuid())
+  userId       String @unique @map("user_id")
+  departmentId String @map("department_id")
+  employeeCode String @unique @map("employee_code")
+  name         String
+  avatarSeed   String @map("avatar_seed")
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department         Department          @relation(fields: [departmentId], references: [id])
+  subjects           TeacherSubject[]
+  timetableSlots     TimetableSlot[]
+  attendanceSessions AttendanceSession[]
+
+  @@map("teachers")
+}
+
+model TeacherSubject {
+  teacherId String @map("teacher_id")
+  subjectId String @map("subject_id")
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, subjectId])
+  @@map("teacher_subjects")
+}
+
+model Administrator {
+  id          String @id @default(uuid())
+  userId      String @unique @map("user_id")
+  name        String
+  designation String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("administrators")
+}
+
+/// Which students may be marked for which subject. The QR flow refuses any
+/// student without a row here (Section 20).
+model Enrollment {
+  id             String   @id @default(uuid())
+  studentId      String   @map("student_id")
+  subjectId      String   @map("subject_id")
+  classSectionId String   @map("class_section_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId])
+  @@index([subjectId])
+  @@map("enrollments")
+}
+
+model TimetableSlot {
+  id             String @id @default(uuid())
+  classSectionId String @map("class_section_id")
+  subjectId      String @map("subject_id")
+  teacherId      String @map("teacher_id")
+  /// 1 = Monday through 7 = Sunday, matching java.time.DayOfWeek.
+  dayOfWeek      Int    @map("day_of_week")
+  startTime      String @map("start_time")
+  endTime        String @map("end_time")
+  room           String
+
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id])
+  teacher      Teacher      @relation(fields: [teacherId], references: [id])
+
+  @@unique([classSectionId, dayOfWeek, startTime])
+  @@map("timetables")
+}
+
+model AttendanceSession {
+  id             String        @id @default(uuid())
+  classSectionId String        @map("class_section_id")
+  subjectId      String        @map("subject_id")
+  teacherId      String        @map("teacher_id")
+  status         SessionStatus @default(ACTIVE)
+  startedAt      DateTime      @default(now()) @map("started_at")
+  closedAt       DateTime?     @map("closed_at")
+
+  classSection ClassSection       @relation(fields: [classSectionId], references: [id])
+  subject      Subject            @relation(fields: [subjectId], references: [id])
+  teacher      Teacher            @relation(fields: [teacherId], references: [id])
+  records      AttendanceRecord[]
+  tokens       AttendanceToken[]
+
+  @@index([classSectionId, status])
+  @@map("attendance_sessions")
+}
+
+/// A short-lived QR credential, always minted by the server (Section 19).
+///
+/// Only the SHA-256 hash is stored: a database read cannot be turned back into
+/// a scannable code. `usedAt` enforces single use (Section 34).
+model AttendanceToken {
+  id        String    @id @default(uuid())
+  sessionId String    @map("session_id")
+  studentId String    @map("student_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, studentId])
+  @@index([expiresAt])
+  @@map("attendance_tokens")
+}
+
+model AttendanceRecord {
+  id        String           @id @default(uuid())
+  sessionId String           @map("session_id")
+  studentId String           @map("student_id")
+  subjectId String           @map("subject_id")
+  status    AttendanceStatus
+  method    AttendanceMethod
+  markedAt  DateTime         @default(now()) @map("marked_at")
+  markedBy  String           @map("marked_by")
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject           @relation(fields: [subjectId], references: [id])
+
+  corrections AttendanceCorrection[]
+
+  /// The database, not application code, is what makes double-marking
+  /// impossible under concurrent scans (Section 24).
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+  @@index([subjectId])
+  @@map("attendance_records")
+}
+
+model AttendanceCorrection {
+  id         String           @id @default(uuid())
+  recordId   String           @map("record_id")
+  fromStatus AttendanceStatus @map("from_status")
+  toStatus   AttendanceStatus @map("to_status")
+  reason     String
+  correctedBy String          @map("corrected_by")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  record AttendanceRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@map("attendance_corrections")
+}
+
+enum NotificationType {
+  ATTENDANCE_MARKED
+  ABSENCE_RECORDED
+  LOW_ATTENDANCE_WARNING
+  ANNOUNCEMENT
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+/// Who did what, to which entity, when (Section 35).
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?  @map("actor_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
