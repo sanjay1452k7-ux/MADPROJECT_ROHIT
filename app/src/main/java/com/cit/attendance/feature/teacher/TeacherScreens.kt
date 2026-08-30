@@ -37,8 +37,8 @@ import com.cit.attendance.core.designsystem.component.BadgeTone
 import com.cit.attendance.core.designsystem.component.StudentRiskRow
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.core.ui.UiState
+import com.cit.attendance.core.ui.formatPercentage
 import com.cit.attendance.domain.model.TeacherDashboard
-import java.util.Locale
 
 /**
  * Teacher home (Section 15).
@@ -145,11 +145,7 @@ private fun TeacherHomeContent(dashboard: TeacherDashboard) {
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.md)) {
                 StatCard(
                     label = "Class average",
-                    value = String.format(
-                        Locale.getDefault(),
-                        "%.1f%%",
-                        dashboard.averageAttendance,
-                    ),
+                    value = formatPercentage(dashboard.averageAttendance),
                     modifier = Modifier.weight(1f),
                 )
                 StatCard(
@@ -283,11 +279,7 @@ fun TeacherAnalyticsScreen(
                             color = AppTheme.colors.textTertiary,
                         )
                         Text(
-                            text = String.format(
-                                Locale.getDefault(),
-                                "%.1f%%",
-                                dashboard.averageAttendance,
-                            ),
+                            text = formatPercentage(dashboard.averageAttendance),
                             style = AppTheme.typography.metricSmall,
                             color = AppTheme.colors.textPrimary,
                             modifier = Modifier.padding(top = AppTheme.spacing.sm),

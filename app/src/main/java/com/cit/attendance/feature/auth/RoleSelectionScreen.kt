@@ -7,11 +7,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -28,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.cit.attendance.core.designsystem.branding.ButterflyMark
 import com.cit.attendance.core.designsystem.branding.CitBrandLockup
@@ -130,6 +134,7 @@ fun RoleSelectionScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = spacing.screenGutter),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -137,7 +142,7 @@ fun RoleSelectionScreen(
             ButterflyMark(
                 modifier = Modifier
                     .padding(top = spacing.xxxl)
-                    .offset(x = butterflyOffset)
+                    .offset { IntOffset(x = butterflyOffset.roundToPx(), y = 0) }
                     .size(132.dp),
                 emphasis = butterflyEmphasis,
             )

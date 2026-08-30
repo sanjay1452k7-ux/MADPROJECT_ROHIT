@@ -37,8 +37,8 @@ import com.cit.attendance.core.designsystem.component.SecondaryButton
 import com.cit.attendance.core.designsystem.component.SeededAvatar
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.core.ui.UiState
+import com.cit.attendance.core.ui.formatPercentage
 import com.cit.attendance.domain.model.NotificationType
-import java.util.Locale
 
 /** Full attendance history (Section 14). */
 @Composable
@@ -197,11 +197,7 @@ fun StudentProfileScreen(
                         ProfileRow("Class", student.classSection.longForm)
                         ProfileRow(
                             label = "Overall attendance",
-                            value = String.format(
-                                Locale.getDefault(),
-                                "%.1f%%",
-                                current.data.overallPercentage,
-                            ),
+                            value = formatPercentage(current.data.overallPercentage),
                         )
                     }
 

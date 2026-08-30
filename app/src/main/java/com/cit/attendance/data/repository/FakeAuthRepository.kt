@@ -5,7 +5,7 @@ import com.cit.attendance.core.common.Outcome
 import com.cit.attendance.data.demo.DemoDirectory
 import com.cit.attendance.data.demo.DemoPeople
 import com.cit.attendance.data.local.PersistedSession
-import com.cit.attendance.data.local.SessionStore
+import com.cit.attendance.data.local.SessionStorage
 import com.cit.attendance.domain.model.AuthenticatedUser
 import com.cit.attendance.domain.model.UserRole
 import com.cit.attendance.domain.repository.AuthRepository
@@ -27,7 +27,7 @@ import javax.inject.Singleton
 @Singleton
 class FakeAuthRepository @Inject constructor(
     private val directory: DemoDirectory,
-    private val sessionStore: SessionStore,
+    private val sessionStore: SessionStorage,
 ) : AuthRepository {
 
     private val sessionState = MutableStateFlow<AuthenticatedUser?>(null)

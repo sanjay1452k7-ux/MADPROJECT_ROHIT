@@ -26,8 +26,8 @@ import com.cit.attendance.core.designsystem.component.SectionHeader
 import com.cit.attendance.core.designsystem.component.StatCard
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.core.ui.UiState
+import com.cit.attendance.core.ui.formatPercentage
 import com.cit.attendance.domain.model.AdminDashboard
-import java.util.Locale
 
 /** Institution overview (Section 16). */
 @Composable
@@ -90,11 +90,7 @@ private fun OverviewContent(dashboard: AdminDashboard, threshold: Int) {
                 StatCard(
                     label = "Present today",
                     value = "${dashboard.presentToday}/${dashboard.expectedToday}",
-                    caption = String.format(
-                        Locale.getDefault(),
-                        "%.1f%% turnout",
-                        dashboard.todaysAttendancePercentage,
-                    ),
+                    caption = formatPercentage(dashboard.todaysAttendancePercentage) + " turnout",
                     modifier = Modifier.weight(1f),
                 )
                 StatCard(
@@ -114,11 +110,7 @@ private fun OverviewContent(dashboard: AdminDashboard, threshold: Int) {
                     color = AppTheme.colors.textTertiary,
                 )
                 Text(
-                    text = String.format(
-                        Locale.getDefault(),
-                        "%.1f%%",
-                        dashboard.averageAttendance,
-                    ),
+                    text = formatPercentage(dashboard.averageAttendance),
                     style = AppTheme.typography.metricSmall,
                     color = AppTheme.colors.textPrimary,
                     modifier = Modifier.padding(top = spacing.sm),
@@ -154,11 +146,7 @@ private fun OverviewContent(dashboard: AdminDashboard, threshold: Int) {
                         )
                     }
                     Text(
-                        text = String.format(
-                            Locale.getDefault(),
-                            "%.1f%%",
-                            stat.averageAttendance,
-                        ),
+                        text = formatPercentage(stat.averageAttendance),
                         style = AppTheme.typography.metricSmall,
                         color = AppTheme.colors.textPrimary,
                     )

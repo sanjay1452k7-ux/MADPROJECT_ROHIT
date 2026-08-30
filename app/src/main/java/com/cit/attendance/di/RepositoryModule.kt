@@ -1,5 +1,7 @@
 package com.cit.attendance.di
 
+import com.cit.attendance.data.local.SessionStorage
+import com.cit.attendance.data.local.SessionStore
 import com.cit.attendance.data.repository.FakeAdminRepository
 import com.cit.attendance.data.repository.FakeAuthRepository
 import com.cit.attendance.data.repository.FakeNotificationRepository
@@ -26,6 +28,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindSessionStorage(impl: SessionStore): SessionStorage
 
     @Binds
     @Singleton

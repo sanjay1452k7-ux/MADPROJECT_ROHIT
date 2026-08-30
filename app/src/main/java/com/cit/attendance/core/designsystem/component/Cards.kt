@@ -21,17 +21,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cit.attendance.core.designsystem.theme.AppTheme
+import com.cit.attendance.core.ui.formatPercentage
+import com.cit.attendance.core.ui.rememberDateFormatter
+import com.cit.attendance.core.ui.rememberTimeFormatter
 import com.cit.attendance.domain.model.AttendanceRecord
 import com.cit.attendance.domain.model.NotificationItem
 import com.cit.attendance.domain.model.NotificationType
 import com.cit.attendance.domain.model.ScheduledClass
 import com.cit.attendance.domain.model.StudentAtRisk
 import com.cit.attendance.domain.model.SubjectAttendance
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-
-private val TimeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
-private val DateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
 
 /** A single headline number with a label (Section 16). */
 @Composable
@@ -77,6 +75,8 @@ fun ScheduleRow(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
 ) {
+    val timeFormat = rememberTimeFormatter()
+
     AppCard(
         modifier = modifier,
         onClick = onClick,
@@ -85,12 +85,12 @@ fun ScheduleRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.width(72.dp)) {
                 Text(
-                    text = scheduledClass.startTime.format(TimeFormat),
+                    text = scheduledClass.startTime.format(timeFormat),
                     style = AppTheme.typography.label,
                     color = AppTheme.colors.textPrimary,
                 )
                 Text(
-                    text = scheduledClass.endTime.format(TimeFormat),
+                    text = scheduledClass.endTime.format(timeFormat),
                     style = AppTheme.typography.bodyMedium,
                     color = AppTheme.colors.textTertiary,
                 )
@@ -172,7 +172,7 @@ fun SubjectAttendanceCard(
                 )
             }
             Text(
-                text = String.format(Locale.getDefault(), "%.1f%%", percentage),
+                text = formatPercentage(percentage),
                 style = AppTheme.typography.metricSmall,
                 color = if (belowThreshold) colors.warning else colors.textPrimary,
             )
@@ -217,16 +217,19 @@ fun AttendanceRecordRow(
     record: AttendanceRecord,
     modifier: Modifier = Modifier,
 ) {
+    val timeFormat = rememberTimeFormatter()
+    val dateFormat = rememberDateFormatter()
+
     AppCard(modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.width(64.dp)) {
                 Text(
-                    text = record.date.format(DateFormat),
+                    text = record.date.format(dateFormat),
                     style = AppTheme.typography.label,
                     color = AppTheme.colors.textPrimary,
                 )
                 Text(
-                    text = record.markedAt?.format(TimeFormat) ?: "--",
+                    text = record.markedAt?.format(timeFormat) ?: "--",
                     style = AppTheme.typography.bodyMedium,
                     color = AppTheme.colors.textTertiary,
                 )
@@ -284,7 +287,7 @@ fun StudentRiskRow(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = String.format(Locale.getDefault(), "%.1f%%", studentAtRisk.percentage),
+                    text = formatPercentage(studentAtRisk.percentage),
                     style = AppTheme.typography.label,
                     color = AppTheme.colors.textPrimary,
                 )
@@ -303,6 +306,7 @@ fun NotificationCard(
     onClick: (() -> Unit)? = null,
 ) {
     val colors = AppTheme.colors
+    val timeFormat = rememberTimeFormatter()
     val tint = when (notification.type) {
         NotificationType.LOW_ATTENDANCE_WARNING -> colors.warning
         NotificationType.ABSENCE_RECORDED -> colors.error
@@ -335,7 +339,7 @@ fun NotificationCard(
                     modifier = Modifier.padding(top = AppTheme.spacing.xxs),
                 )
                 Text(
-                    text = notification.timestamp.format(TimeFormat),
+                    text = notification.timestamp.format(timeFormat),
                     style = AppTheme.typography.overline,
                     color = colors.textTertiary,
                     modifier = Modifier.padding(top = AppTheme.spacing.sm),

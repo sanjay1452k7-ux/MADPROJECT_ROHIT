@@ -34,9 +34,9 @@ data class PersistedSession(
 class SessionStore @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val cipher: KeystoreCipher,
-) {
+) : SessionStorage {
 
-    suspend fun save(session: PersistedSession) {
+    override suspend fun save(session: PersistedSession) {
         val encryptedToken = cipher.encrypt(session.token) ?: return
         context.sessionDataStore.edit { prefs ->
             prefs[KEY_USER_ID] = session.userId
@@ -46,7 +46,7 @@ class SessionStore @Inject constructor(
     }
 
     /** Returns the stored session, or null when absent or undecryptable. */
-    suspend fun read(): PersistedSession? {
+    override suspend fun read(): PersistedSession? {
         val prefs = context.sessionDataStore.data.first()
         val userId = prefs[KEY_USER_ID] ?: return null
         val role = prefs[KEY_ROLE] ?: return null
@@ -54,7 +54,7 @@ class SessionStore @Inject constructor(
         return PersistedSession(userId = userId, role = role, token = token)
     }
 
-    suspend fun clear() {
+    override suspend fun clear() {
         context.sessionDataStore.edit { it.clear() }
     }
 

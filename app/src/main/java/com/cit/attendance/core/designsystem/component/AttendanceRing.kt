@@ -20,8 +20,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.cit.attendance.core.designsystem.theme.AppTheme
+import com.cit.attendance.core.ui.formatPercentage
 import com.cit.attendance.domain.model.AttendanceStanding
-import java.util.Locale
 
 /**
  * The headline attendance figure, drawn as a progress ring.
@@ -56,7 +56,7 @@ fun AttendanceRing(
         label = "attendanceSweep",
     )
 
-    val formatted = String.format(Locale.getDefault(), "%.1f%%", percentage)
+    val formatted = formatPercentage(percentage)
     val description = "Overall attendance $formatted, status ${standing.label}"
 
     Box(
