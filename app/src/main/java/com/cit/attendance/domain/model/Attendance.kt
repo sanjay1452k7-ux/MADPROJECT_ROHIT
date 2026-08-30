@@ -2,6 +2,7 @@ package com.cit.attendance.domain.model
 
 import java.time.LocalDate
 import java.time.LocalTime
+import kotlin.math.ceil
 
 /** How a student was accounted for in one session. */
 enum class AttendanceStatus { PRESENT, ABSENT, LATE }
@@ -66,6 +67,25 @@ class AttendancePolicy(private val thresholdPercent: Int) {
     }
 
     fun isBelowThreshold(percentage: Float): Boolean = percentage < thresholdPercent
+
+    /**
+     * How many consecutive future classes must be attended to climb back to the
+     * threshold, or 0 if already there.
+     *
+     * Solves (attended + n) / (held + n) >= threshold, which is the question a
+     * student actually asks when they see a warning.
+     */
+    fun classesNeededToReachThreshold(attended: Int, held: Int): Int {
+        if (held == 0) return 0
+        val current = (attended * 100f) / held
+        if (current >= thresholdPercent) return 0
+        // At a 100% threshold no finite number of classes closes the gap.
+        if (thresholdPercent >= 100) return Int.MAX_VALUE
+
+        val numerator = thresholdPercent * held - 100 * attended
+        val denominator = 100 - thresholdPercent
+        return ceil(numerator.toFloat() / denominator).toInt().coerceAtLeast(0)
+    }
 }
 
 /** A student's overall attendance position. */
