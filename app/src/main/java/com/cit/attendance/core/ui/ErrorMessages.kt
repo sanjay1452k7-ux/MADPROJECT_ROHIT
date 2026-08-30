@@ -77,6 +77,54 @@ fun AppError.present(): ErrorPresentation = when (this) {
         isRetryable = false,
     )
 
+    AppError.RateLimited -> ErrorPresentation(
+        title = "Too many attempts",
+        message = "Please wait a moment before trying again.",
+        isRetryable = true,
+    )
+
+    AppError.QrExpired -> ErrorPresentation(
+        title = "QR code expired",
+        message = "Ask the student to show their refreshed code.",
+        isRetryable = false,
+    )
+
+    AppError.QrInvalid -> ErrorPresentation(
+        title = "Invalid attendance token",
+        message = "That code was not issued for this session.",
+        isRetryable = false,
+    )
+
+    AppError.QrAlreadyUsed -> ErrorPresentation(
+        title = "Code already scanned",
+        message = "Ask the student to show their refreshed code.",
+        isRetryable = false,
+    )
+
+    AppError.AttendanceSessionClosed -> ErrorPresentation(
+        title = "Attendance session closed",
+        message = "This session is no longer accepting attendance.",
+        isRetryable = false,
+    )
+
+    AppError.StudentNotEnrolled -> ErrorPresentation(
+        title = "Student not enrolled",
+        message = "This student is not enrolled in this subject.",
+        isRetryable = false,
+    )
+
+    is AppError.AlreadyMarked -> ErrorPresentation(
+        title = "Attendance already marked",
+        message = buildString {
+            append(studentName ?: "This student")
+            if (registerNumber != null) append(" ($registerNumber)")
+            append(" was already marked")
+            if (subjectName != null) append(" for $subjectName")
+            append(".")
+        },
+        isRetryable = false,
+    )
+
     // The detail is carried for logging only and is deliberately not shown.
     is AppError.Unexpected -> ErrorPresentation(
         title = "Something went wrong",

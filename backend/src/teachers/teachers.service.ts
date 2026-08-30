@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AttendanceStatus, SessionStatus } from '@prisma/client';
 import { ApiError } from '../common/api-error';
+import { formatClassName } from '../common/class-label';
 import { PrismaService } from '../common/prisma/prisma.service';
 
 @Injectable()
@@ -48,11 +49,11 @@ export class TeachersService {
           department: slot.classSection.department.code,
           year: slot.classSection.year,
           section: slot.classSection.section,
-          name: [
+          name: formatClassName(
             slot.classSection.department.code,
-            slot.classSection.year + ' Year',
+            slot.classSection.year,
             slot.classSection.section,
-          ].join(' - '),
+          ),
         },
       ]),
     );
@@ -135,11 +136,11 @@ export class TeachersService {
         subjectCode: slot.subject.code,
         subjectName: slot.subject.name,
         classSectionId: slot.classSectionId,
-        className: [
+        className: formatClassName(
           slot.classSection.department.code,
-          slot.classSection.year + ' Year',
+          slot.classSection.year,
           slot.classSection.section,
-        ].join(' - '),
+        ),
         startTime: slot.startTime,
         endTime: slot.endTime,
         room: slot.room,

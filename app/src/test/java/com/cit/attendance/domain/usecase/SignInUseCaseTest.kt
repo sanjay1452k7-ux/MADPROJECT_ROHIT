@@ -2,21 +2,20 @@ package com.cit.attendance.domain.usecase
 
 import com.cit.attendance.core.common.AppError
 import com.cit.attendance.core.common.Outcome
-import com.cit.attendance.data.demo.DemoDirectory
-import com.cit.attendance.data.demo.DemoPeople
-import com.cit.attendance.data.repository.FakeAuthRepository
-import com.cit.attendance.data.repository.InMemorySessionStorage
 import com.cit.attendance.domain.config.InstitutionConfig
+import com.cit.attendance.domain.model.AuthenticatedUser
 import com.cit.attendance.domain.model.UserRole
+import com.cit.attendance.domain.repository.AuthRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The use case does the fast local checks. It must never be the thing that
- * decides a credential is valid - that stays with the repository, and in
- * Milestone 2 with the server.
+ * The use case performs the fast local checks only. It must never be the thing
+ * that decides a credential is valid - that belongs to the server.
  */
 class SignInUseCaseTest {
 
@@ -25,8 +24,39 @@ class SignInUseCaseTest {
         emailDomain = "citchennai.net",
         attendanceThresholdPercent = 75,
     )
-    private val directory = DemoDirectory(config)
-    private val repository = FakeAuthRepository(directory, InMemorySessionStorage())
+
+    /** Records what reached the repository so the test can assert on it. */
+    private class RecordingAuthRepository : AuthRepository {
+        var lastEmail: String? = null
+        var lastRole: UserRole? = null
+        var callCount = 0
+
+        override val session: Flow<AuthenticatedUser?> = flowOf(null)
+
+        override suspend fun signIn(
+            email: String,
+            password: String,
+            expectedRole: UserRole,
+        ): Outcome<AuthenticatedUser> {
+            callCount++
+            lastEmail = email
+            lastRole = expectedRole
+            return Outcome.Success(
+                AuthenticatedUser(
+                    id = "stu-1",
+                    displayName = "Sanjayan A",
+                    email = email,
+                    role = expectedRole,
+                ),
+            )
+        }
+
+        override suspend fun restoreSession(): Outcome<AuthenticatedUser?> = Outcome.Success(null)
+
+        override suspend fun signOut() = Unit
+    }
+
+    private val repository = RecordingAuthRepository()
     private val signIn = SignInUseCase(repository, config)
 
     @Test
@@ -35,6 +65,7 @@ class SignInUseCaseTest {
 
         assertTrue(result is Outcome.Failure)
         assertTrue((result as Outcome.Failure).error is AppError.Validation)
+        assertEquals("nothing should reach the network", 0, repository.callCount)
     }
 
     @Test
@@ -43,49 +74,40 @@ class SignInUseCaseTest {
 
         assertTrue(result is Outcome.Failure)
         assertTrue((result as Outcome.Failure).error is AppError.Validation)
+        assertEquals(0, repository.callCount)
     }
 
     @Test
-    fun `an address outside the institution domain is refused`() = runTest {
+    fun `an address outside the institution domain is refused locally`() = runTest {
         val result = signIn("someone@gmail.com", "password", UserRole.STUDENT)
 
         assertEquals(
             Outcome.Failure(AppError.UnrecognisedInstitutionEmail("citchennai.net")),
             result,
         )
+        assertEquals(0, repository.callCount)
     }
 
     @Test
-    fun `email is normalised before it reaches the repository`() = runTest {
-        val result = signIn(
-            email = "  24CS0845@CitChennai.net  ",
-            password = DemoPeople.DEMO_PASSWORD,
-            role = UserRole.STUDENT,
-        )
-
-        assertTrue("mixed case and padding should still sign in", result is Outcome.Success)
-        assertEquals("Sanjayan A", (result as Outcome.Success).data.displayName)
-    }
-
-    @Test
-    fun `a teacher account signs in under the teacher role`() = runTest {
-        val teacher = directory.teachers.first()
-
-        val result = signIn(teacher.email, DemoPeople.DEMO_PASSWORD, UserRole.TEACHER)
+    fun `email is trimmed and lower-cased before it reaches the repository`() = runTest {
+        val result = signIn("  24CS0845@CitChennai.net  ", "Cit@2026", UserRole.STUDENT)
 
         assertTrue(result is Outcome.Success)
-        assertEquals(UserRole.TEACHER, (result as Outcome.Success).data.role)
+        assertEquals("24cs0845@citchennai.net", repository.lastEmail)
     }
 
     @Test
-    fun `an administrator account signs in under the admin role`() = runTest {
-        val result = signIn(
-            email = directory.administrator.email,
-            password = DemoPeople.DEMO_PASSWORD,
-            role = UserRole.ADMIN,
-        )
+    fun `the chosen role is passed through for the server to check`() = runTest {
+        signIn("meenakshi.s@citchennai.net", "Cit@2026", UserRole.TEACHER)
+
+        assertEquals(UserRole.TEACHER, repository.lastRole)
+    }
+
+    @Test
+    fun `a valid request reaches the repository exactly once`() = runTest {
+        val result = signIn("24cs0845@citchennai.net", "Cit@2026", UserRole.STUDENT)
 
         assertTrue(result is Outcome.Success)
-        assertEquals(UserRole.ADMIN, (result as Outcome.Success).data.role)
+        assertEquals(1, repository.callCount)
     }
 }

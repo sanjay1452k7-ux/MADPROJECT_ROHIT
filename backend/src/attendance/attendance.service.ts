@@ -10,6 +10,7 @@ import {
 import { createHash, randomBytes } from 'node:crypto';
 import { ApiError } from '../common/api-error';
 import { AuditAction, AuditService } from '../common/audit/audit.service';
+import { formatClassName } from '../common/class-label';
 import { PrismaService } from '../common/prisma/prisma.service';
 
 /** What the student app renders as a QR code. */
@@ -520,7 +521,11 @@ export class AttendanceService {
       status: session.status,
       subjectName: session.subject.name,
       subjectCode: session.subject.code,
-      className: `${session.classSection.department.code} - ${session.classSection.year} Year - ${session.classSection.section}`,
+      className: formatClassName(
+        session.classSection.department.code,
+        session.classSection.year,
+        session.classSection.section,
+      ),
       teacherName: session.teacher.name,
       startedAt: session.startedAt.toISOString(),
       closedAt: session.closedAt?.toISOString() ?? null,

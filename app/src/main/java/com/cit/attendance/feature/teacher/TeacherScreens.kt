@@ -43,13 +43,13 @@ import com.cit.attendance.domain.model.TeacherDashboard
 /**
  * Teacher home (Section 15).
  *
- * "Start attendance" is the primary action and is shown prominently, but the
- * session workflow itself lands in Milestone 2 - so the control states plainly
- * that it is not wired up yet rather than pretending to work.
+ * "Start attendance" is the primary action: it opens the attendance tab, where
+ * the session is created and codes are scanned.
  */
 @Composable
 fun TeacherHomeScreen(
     viewModel: TeacherViewModel,
+    onStartAttendance: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -67,13 +67,19 @@ fun TeacherHomeScreen(
                 onRetry = if (current.error.isRetryable) viewModel::load else null,
             )
 
-            is UiState.Content -> TeacherHomeContent(current.data)
+            is UiState.Content -> TeacherHomeContent(
+                dashboard = current.data,
+                onStartAttendance = onStartAttendance,
+            )
         }
     }
 }
 
 @Composable
-private fun TeacherHomeContent(dashboard: TeacherDashboard) {
+private fun TeacherHomeContent(
+    dashboard: TeacherDashboard,
+    onStartAttendance: () -> Unit,
+) {
     val spacing = AppTheme.spacing
 
     LazyColumn(
@@ -127,16 +133,13 @@ private fun TeacherHomeContent(dashboard: TeacherDashboard) {
                 }
 
                 PrimaryButton(
-                    text = "Start attendance",
-                    onClick = {},
-                    enabled = false,
+                    text = if (dashboard.activeSessionCount > 0) {
+                        "Continue attendance"
+                    } else {
+                        "Start attendance"
+                    },
+                    onClick = onStartAttendance,
                     modifier = Modifier.padding(top = spacing.lg),
-                )
-                Text(
-                    text = "QR sessions arrive in the next milestone.",
-                    style = AppTheme.typography.bodyMedium,
-                    color = AppTheme.colors.textTertiary,
-                    modifier = Modifier.padding(top = spacing.sm),
                 )
             }
         }

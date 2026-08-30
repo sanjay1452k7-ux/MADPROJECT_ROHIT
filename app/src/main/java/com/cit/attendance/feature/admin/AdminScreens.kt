@@ -194,8 +194,9 @@ fun AdminPeopleScreen(
                     caption = "Computer Science and Engineering",
                 )
                 Text(
-                    text = "Roster management, enrolment and timetable editing arrive " +
-                        "with the backend milestone.",
+                    text = "Figures are read live from the attendance service. " +
+                        "Roster and timetable editing arrive with the " +
+                        "administration milestone.",
                     style = AppTheme.typography.bodyMedium,
                     color = AppTheme.colors.textTertiary,
                 )

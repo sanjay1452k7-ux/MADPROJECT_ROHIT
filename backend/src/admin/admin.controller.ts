@@ -21,6 +21,6 @@ export class AdminController {
    */
   @Get('dashboard')
   dashboard(@CurrentUser() user: AuthenticatedPrincipal) {
-    return this.admin.dashboard(user.institutionId);
+    return this.admin.dashboard(user.institutionId, user.profileId);
   }
 }

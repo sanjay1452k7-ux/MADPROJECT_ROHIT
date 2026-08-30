@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
@@ -28,8 +29,16 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
+            // Reached through "adb reverse tcp:3000 tcp:3000", which tunnels the
+            // device's own port 3000 to the development machine. This works for
+            // emulators and USB-attached phones alike and needs no firewall
+            // exception, unlike the 10.0.2.2 emulator route.
+            buildConfigField("String", "API_BASE_URL", "\"http://127.0.0.1:3000/\"")
         }
         release {
+            // Deployments must point at a real HTTPS host; there is no cleartext
+            // network configuration outside debug builds.
+            buildConfigField("String", "API_BASE_URL", "\"https://attendance.citchennai.net/\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -72,6 +81,19 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.json)
+
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.serialization)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.zxing.core)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

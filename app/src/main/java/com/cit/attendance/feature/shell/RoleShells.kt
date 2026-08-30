@@ -15,6 +15,8 @@ import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,10 +39,15 @@ import com.cit.attendance.feature.student.StudentHistoryScreen
 import com.cit.attendance.feature.student.StudentHomeScreen
 import com.cit.attendance.feature.student.StudentNotificationsScreen
 import com.cit.attendance.feature.student.StudentProfileScreen
+import com.cit.attendance.feature.student.StudentQrScreen
 import com.cit.attendance.feature.teacher.TeacherAnalyticsScreen
 import com.cit.attendance.feature.teacher.TeacherClassesScreen
 import com.cit.attendance.feature.teacher.TeacherHomeScreen
 import com.cit.attendance.feature.teacher.TeacherProfileScreen
+import com.cit.attendance.feature.teacher.AttendanceScannerScreen
+import com.cit.attendance.feature.teacher.AttendanceSessionViewModel
+import com.cit.attendance.feature.teacher.TeacherLiveSessionScreen
+import com.cit.attendance.feature.teacher.TeacherSessionLauncher
 import com.cit.attendance.feature.teacher.TeacherViewModel
 
 /**
@@ -60,6 +67,7 @@ fun StudentShell(
 
     val items = listOf(
         BottomNavItem(StudentRoutes.HOME, "Home", Icons.Outlined.Dashboard),
+        BottomNavItem(StudentRoutes.ATTENDANCE, "Attend", Icons.Outlined.QrCode2),
         BottomNavItem(StudentRoutes.HISTORY, "History", Icons.Outlined.History),
         BottomNavItem(
             route = StudentRoutes.NOTIFICATIONS,
@@ -82,6 +90,7 @@ fun StudentShell(
     ) {
         when (selectedRoute) {
             StudentRoutes.HOME -> StudentHomeScreen()
+            StudentRoutes.ATTENDANCE -> StudentQrScreen()
             StudentRoutes.HISTORY -> StudentHistoryScreen()
             StudentRoutes.NOTIFICATIONS -> StudentNotificationsScreen()
             StudentRoutes.PROFILE -> StudentProfileScreen(onSignOut = shellViewModel::signOut)
@@ -95,11 +104,13 @@ fun TeacherShell(
     modifier: Modifier = Modifier,
     shellViewModel: ShellViewModel = hiltViewModel(),
     teacherViewModel: TeacherViewModel = hiltViewModel(),
+    sessionViewModel: AttendanceSessionViewModel = hiltViewModel(),
 ) {
     var selectedRoute by remember { mutableStateOf(TeacherRoutes.HOME) }
 
     val items = listOf(
         BottomNavItem(TeacherRoutes.HOME, "Today", Icons.Outlined.Dashboard),
+        BottomNavItem(TeacherRoutes.ATTENDANCE, "Attend", Icons.Outlined.QrCodeScanner),
         BottomNavItem(TeacherRoutes.CLASSES, "Classes", Icons.Outlined.Class),
         BottomNavItem(TeacherRoutes.ANALYTICS, "Analytics", Icons.Outlined.Assessment),
         BottomNavItem(TeacherRoutes.PROFILE, "Profile", Icons.Outlined.AccountCircle),
@@ -112,7 +123,14 @@ fun TeacherShell(
         onSelect = { selectedRoute = it },
     ) {
         when (selectedRoute) {
-            TeacherRoutes.HOME -> TeacherHomeScreen(viewModel = teacherViewModel)
+            TeacherRoutes.HOME -> TeacherHomeScreen(
+                viewModel = teacherViewModel,
+                onStartAttendance = { selectedRoute = TeacherRoutes.ATTENDANCE },
+            )
+            TeacherRoutes.ATTENDANCE -> TeacherAttendanceFlow(
+                teacherViewModel = teacherViewModel,
+                sessionViewModel = sessionViewModel,
+            )
             TeacherRoutes.CLASSES -> TeacherClassesScreen(viewModel = teacherViewModel)
             TeacherRoutes.ANALYTICS -> TeacherAnalyticsScreen(viewModel = teacherViewModel)
             TeacherRoutes.PROFILE -> TeacherProfileScreen(
@@ -177,6 +195,46 @@ private fun ShellScaffold(
             items = items,
             selectedRoute = selectedRoute,
             onSelect = onSelect,
+        )
+    }
+}
+
+/** Where the teacher is inside the attendance tab. */
+private enum class AttendanceStep { CHOOSE, LIVE, SCAN }
+
+/**
+ * The attendance tab's own small flow (Section 17).
+ *
+ * Kept as local state rather than nested navigation destinations: these are
+ * steps of one task, and backing out of a scan should return to the session,
+ * not unwind the whole tab.
+ */
+@Composable
+private fun TeacherAttendanceFlow(
+    teacherViewModel: TeacherViewModel,
+    sessionViewModel: AttendanceSessionViewModel,
+) {
+    var step by remember { mutableStateOf(AttendanceStep.CHOOSE) }
+
+    when (step) {
+        AttendanceStep.CHOOSE -> TeacherSessionLauncher(
+            teacherViewModel = teacherViewModel,
+            sessionViewModel = sessionViewModel,
+            onSessionStarted = { step = AttendanceStep.LIVE },
+        )
+
+        AttendanceStep.LIVE -> TeacherLiveSessionScreen(
+            sessionViewModel = sessionViewModel,
+            onScan = { step = AttendanceStep.SCAN },
+            onClosed = { step = AttendanceStep.CHOOSE },
+        )
+
+        AttendanceStep.SCAN -> AttendanceScannerScreen(
+            viewModel = sessionViewModel,
+            onClose = {
+                sessionViewModel.refreshSession()
+                step = AttendanceStep.LIVE
+            },
         )
     }
 }

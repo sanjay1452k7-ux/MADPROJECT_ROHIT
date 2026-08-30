@@ -34,6 +34,7 @@ object Routes {
 /** Tabs inside the student shell (Section 14). */
 object StudentRoutes {
     const val HOME = "student/home"
+    const val ATTENDANCE = "student/attendance"
     const val HISTORY = "student/history"
     const val NOTIFICATIONS = "student/notifications"
     const val PROFILE = "student/profile"
@@ -42,6 +43,7 @@ object StudentRoutes {
 /** Tabs inside the teacher shell (Section 15). */
 object TeacherRoutes {
     const val HOME = "teacher/home"
+    const val ATTENDANCE = "teacher/attendance"
     const val CLASSES = "teacher/classes"
     const val ANALYTICS = "teacher/analytics"
     const val PROFILE = "teacher/profile"

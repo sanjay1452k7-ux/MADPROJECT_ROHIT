@@ -14,7 +14,14 @@ export class AdminService {
     return Number(this.config.get<string>('ATTENDANCE_THRESHOLD_PERCENT', '75'));
   }
 
-  async dashboard(institutionId: string) {
+  async dashboard(institutionId: string, administratorId: string | null) {
+    const administrator = administratorId
+      ? await this.prisma.administrator.findUnique({
+          where: { id: administratorId },
+          include: { user: true },
+        })
+      : null;
+
     const departments = await this.prisma.department.findMany({
       where: { institutionId },
       include: { classSections: { include: { students: true } } },
@@ -82,6 +89,12 @@ export class AdminService {
     });
 
     return {
+      administrator: {
+        id: administrator?.id ?? '',
+        name: administrator?.name ?? '',
+        email: administrator?.user.email ?? '',
+        designation: administrator?.designation ?? '',
+      },
       totalStudents: students.length,
       totalFaculty,
       presentToday,

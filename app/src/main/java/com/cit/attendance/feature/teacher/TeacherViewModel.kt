@@ -7,6 +7,7 @@ import com.cit.attendance.core.ui.UiState
 import com.cit.attendance.core.ui.present
 import com.cit.attendance.domain.model.AttendancePolicy
 import com.cit.attendance.domain.model.TeacherDashboard
+import com.cit.attendance.domain.repository.TeacherRepository
 import com.cit.attendance.domain.usecase.GetTeacherDashboardUseCase
 import com.cit.attendance.domain.usecase.ObserveSessionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,8 +29,17 @@ import javax.inject.Inject
 class TeacherViewModel @Inject constructor(
     private val observeSession: ObserveSessionUseCase,
     private val getDashboard: GetTeacherDashboardUseCase,
+    private val teacherRepository: TeacherRepository,
     val policy: AttendancePolicy,
 ) : ViewModel() {
+
+    /**
+     * The cohort a new session is opened for. Milestone 2 seeds a single
+     * class-section per teacher; when a teacher covers several, this becomes a
+     * choice on the launcher screen rather than an assumption.
+     */
+    var primaryCohortId: String? = null
+        private set
 
     private val _state = MutableStateFlow<UiState<TeacherDashboard>>(UiState.Loading)
     val state: StateFlow<UiState<TeacherDashboard>> = _state.asStateFlow()
@@ -45,6 +55,11 @@ class TeacherViewModel @Inject constructor(
             _state.value = when (val result = getDashboard(teacherId)) {
                 is Outcome.Success -> UiState.Content(result.data)
                 is Outcome.Failure -> UiState.Failed(result.error.present())
+            }
+
+            val cohorts = teacherRepository.getCohorts()
+            if (cohorts is Outcome.Success) {
+                primaryCohortId = cohorts.data.firstOrNull()?.classSectionId
             }
         }
     }

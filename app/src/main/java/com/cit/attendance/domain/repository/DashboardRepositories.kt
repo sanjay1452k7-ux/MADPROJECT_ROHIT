@@ -7,6 +7,7 @@ import com.cit.attendance.domain.model.NotificationItem
 import com.cit.attendance.domain.model.Student
 import com.cit.attendance.domain.model.StudentDashboard
 import com.cit.attendance.domain.model.TeacherDashboard
+import com.cit.attendance.domain.model.TeachingCohort
 
 /**
  * Student-facing reads (Section 14).
@@ -23,6 +24,9 @@ interface StudentRepository {
 /** Teacher-facing reads (Section 15). */
 interface TeacherRepository {
     suspend fun getDashboard(teacherId: String): Outcome<TeacherDashboard>
+
+    /** The cohorts this teacher may open an attendance session for. */
+    suspend fun getCohorts(): Outcome<List<TeachingCohort>>
 }
 
 /** Institution-wide reads (Section 16). */

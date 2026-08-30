@@ -41,6 +41,37 @@ sealed interface AppError {
     /** Client-side validation failed before anything was sent. */
     data class Validation(val message: String) : AppError
 
+    /** Too many attempts in a short window (Section 34). */
+    data object RateLimited : AppError
+
+    // ---------------------------------------------------------- attendance
+
+    /** The QR code passed its validity window before it was scanned. */
+    data object QrExpired : AppError
+
+    /** The scanned code is not one this service issued. */
+    data object QrInvalid : AppError
+
+    /** A code may be scanned once; this one already was (Section 34). */
+    data object QrAlreadyUsed : AppError
+
+    /** The teacher has ended the session. */
+    data object AttendanceSessionClosed : AppError
+
+    /** The student is not enrolled in the subject being marked. */
+    data object StudentNotEnrolled : AppError
+
+    /**
+     * Attendance already exists for this student in this session (Section 24).
+     * The detail is carried so the screen can show who, when and for what.
+     */
+    data class AlreadyMarked(
+        val studentName: String?,
+        val registerNumber: String?,
+        val subjectName: String?,
+        val markedAt: String?,
+    ) : AppError
+
     /** Anything genuinely unexpected. Detail is for logs, never for the user. */
     data class Unexpected(val detail: String) : AppError
 }

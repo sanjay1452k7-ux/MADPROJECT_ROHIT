@@ -20,7 +20,10 @@ private val Context.sessionDataStore: DataStore<Preferences> by preferencesDataS
 data class PersistedSession(
     val userId: String,
     val role: String,
+    /** Short-lived bearer token used on every request. */
     val token: String,
+    /** Long-lived token used to obtain a new access token. */
+    val refreshToken: String,
 )
 
 /**
@@ -37,11 +40,15 @@ class SessionStore @Inject constructor(
 ) : SessionStorage {
 
     override suspend fun save(session: PersistedSession) {
+        // Both tokens are secrets: the refresh token is the more valuable of the
+        // two, since it can mint new access tokens.
         val encryptedToken = cipher.encrypt(session.token) ?: return
+        val encryptedRefresh = cipher.encrypt(session.refreshToken) ?: return
         context.sessionDataStore.edit { prefs ->
             prefs[KEY_USER_ID] = session.userId
             prefs[KEY_ROLE] = session.role
             prefs[KEY_TOKEN] = encryptedToken
+            prefs[KEY_REFRESH] = encryptedRefresh
         }
     }
 
@@ -51,7 +58,13 @@ class SessionStore @Inject constructor(
         val userId = prefs[KEY_USER_ID] ?: return null
         val role = prefs[KEY_ROLE] ?: return null
         val token = prefs[KEY_TOKEN]?.let(cipher::decrypt) ?: return null
-        return PersistedSession(userId = userId, role = role, token = token)
+        val refresh = prefs[KEY_REFRESH]?.let(cipher::decrypt) ?: return null
+        return PersistedSession(
+            userId = userId,
+            role = role,
+            token = token,
+            refreshToken = refresh,
+        )
     }
 
     override suspend fun clear() {
@@ -62,5 +75,6 @@ class SessionStore @Inject constructor(
         val KEY_USER_ID = stringPreferencesKey("user_id")
         val KEY_ROLE = stringPreferencesKey("role")
         val KEY_TOKEN = stringPreferencesKey("token")
+        val KEY_REFRESH = stringPreferencesKey("refresh_token")
     }
 }
