@@ -1,10 +1,12 @@
 package com.cit.attendance.core.network
 
 import com.cit.attendance.core.network.dto.ActiveSessionDto
+import com.cit.attendance.core.network.dto.AdminAnalyticsDto
 import com.cit.attendance.core.network.dto.AdminDashboardDto
 import com.cit.attendance.core.network.dto.AttendanceRecordDto
 import com.cit.attendance.core.network.dto.AuthTokensDto
 import com.cit.attendance.core.network.dto.AuthUserDto
+import com.cit.attendance.core.network.dto.GenerateReportRequest
 import com.cit.attendance.core.network.dto.LoginRequest
 import com.cit.attendance.core.network.dto.ManualAttendanceRequest
 import com.cit.attendance.core.network.dto.MarkAttendanceRequest
@@ -15,10 +17,13 @@ import com.cit.attendance.core.network.dto.RefreshRequest
 import com.cit.attendance.core.network.dto.SessionSummaryDto
 import com.cit.attendance.core.network.dto.StartSessionRequest
 import com.cit.attendance.core.network.dto.StudentDashboardDto
+import com.cit.attendance.core.network.dto.StudentAnalyticsDto
 import com.cit.attendance.core.network.dto.StudentDto
+import com.cit.attendance.core.network.dto.TeacherAnalyticsDto
 import com.cit.attendance.core.network.dto.TeacherDashboardDto
 import com.cit.attendance.core.network.dto.VerifiedStudentDto
 import com.cit.attendance.core.network.dto.VerifyTokenRequest
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -101,6 +106,26 @@ interface AttendanceApi {
         @Body body: ManualAttendanceRequest,
     ): Response<Unit>
 
+    // ---------------------------------------------------------- analytics
+
+    @GET("analytics/student")
+    suspend fun studentAnalytics(): StudentAnalyticsDto
+
+    @GET("analytics/teacher")
+    suspend fun teacherAnalytics(): TeacherAnalyticsDto
+
+    @GET("analytics/admin")
+    suspend fun adminAnalytics(): AdminAnalyticsDto
+
+    // ------------------------------------------------------------ reports
+
+    /**
+     * Returns the rendered file as a stream. The server scopes the request to
+     * the caller, so a student can only ever receive their own report.
+     */
+    @POST("reports")
+    suspend fun generateReport(@Body body: GenerateReportRequest): Response<ResponseBody>
+
     // -------------------------------------------------------------- admin
 
     @GET("admin/dashboard")
@@ -113,4 +138,7 @@ interface AttendanceApi {
 
     @PATCH("notifications/{id}/read")
     suspend fun markNotificationRead(@Path("id") id: String): Response<Unit>
+
+    @PATCH("notifications/read-all")
+    suspend fun markAllNotificationsRead(): Response<Unit>
 }

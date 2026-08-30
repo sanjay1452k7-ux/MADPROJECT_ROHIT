@@ -12,6 +12,7 @@ import { ApiError } from '../common/api-error';
 import { AuditAction, AuditService } from '../common/audit/audit.service';
 import { formatClassName } from '../common/class-label';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /** What the student app renders as a QR code. */
 export interface MintedTokenDto {
@@ -46,6 +47,7 @@ export class AttendanceService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private get tokenTtlSeconds(): number {
@@ -105,6 +107,11 @@ export class AttendanceService {
       return this.sessionSummary(sessionId);
     }
 
+    // Closing the session is what turns "not scanned" into a recorded absence.
+    // Without this, an unmarked student would simply be missing from the data
+    // and every percentage would silently count only the classes they attended.
+    const absentCount = await this.recordAbsencesFor(sessionId, teacherProfileId);
+
     await this.prisma.attendanceSession.update({
       where: { id: sessionId },
       data: { status: SessionStatus.CLOSED, closedAt: new Date() },
@@ -115,6 +122,7 @@ export class AttendanceService {
       action: AuditAction.SESSION_CLOSED,
       entityType: 'AttendanceSession',
       entityId: sessionId,
+      metadata: { absencesRecorded: absentCount },
     });
 
     return this.sessionSummary(sessionId);
@@ -545,6 +553,116 @@ export class AttendanceService {
     };
   }
 
+
+  /**
+   * Records ABSENT for every enrolled student the teacher did not account for,
+   * and tells them (Section 32).
+   *
+   * Uses createMany with skipDuplicates so a student marked in the moment
+   * between the read and the write is not overwritten - the unique constraint
+   * on (session, student) is the arbiter, not this code.
+   */
+  private async recordAbsencesFor(sessionId: string, teacherId: string): Promise<number> {
+    const session = await this.prisma.attendanceSession.findUnique({
+      where: { id: sessionId },
+      include: { subject: true },
+    });
+    if (!session) {
+      return 0;
+    }
+
+    const [enrolled, existing] = await Promise.all([
+      this.prisma.enrollment.findMany({
+        where: { subjectId: session.subjectId, classSectionId: session.classSectionId },
+        include: { student: true },
+      }),
+      this.prisma.attendanceRecord.findMany({
+        where: { sessionId },
+        select: { studentId: true },
+      }),
+    ]);
+
+    const alreadyRecorded = new Set(existing.map((r) => r.studentId));
+    const absentees = enrolled.filter((e) => !alreadyRecorded.has(e.studentId));
+
+    if (absentees.length === 0) {
+      return 0;
+    }
+
+    await this.prisma.attendanceRecord.createMany({
+      data: absentees.map((enrollment) => ({
+        sessionId,
+        studentId: enrollment.studentId,
+        subjectId: session.subjectId,
+        status: AttendanceStatus.ABSENT,
+        method: AttendanceMethod.MANUAL,
+        markedBy: teacherId,
+      })),
+      skipDuplicates: true,
+    });
+
+    await this.notifications.notifyMany(
+      absentees.map((enrollment) => ({
+        userId: enrollment.student.userId,
+        type: NotificationType.ABSENCE_RECORDED,
+        title: 'Absence recorded',
+        message: `You were marked absent for ${session.subject.name}.`,
+      })),
+    );
+
+    await this.raiseLowAttendanceWarnings(absentees.map((e) => e.studentId));
+
+    return absentees.length;
+  }
+
+  /**
+   * Notifies students who have just crossed below the requirement.
+   *
+   * Only a student whose most recent record took them under the line is told,
+   * so nobody receives the same warning after every session they miss.
+   */
+  private async raiseLowAttendanceWarnings(studentIds: string[]): Promise<void> {
+    const threshold = Number(
+      this.config.get<string>('ATTENDANCE_THRESHOLD_PERCENT', '75'),
+    );
+
+    for (const studentId of studentIds) {
+      const [held, attended] = await Promise.all([
+        this.prisma.attendanceRecord.count({ where: { studentId } }),
+        this.prisma.attendanceRecord.count({
+          where: { studentId, status: { not: AttendanceStatus.ABSENT } },
+        }),
+      ]);
+      if (held === 0) {
+        continue;
+      }
+
+      const current = (attended / held) * 100;
+      if (current >= threshold) {
+        continue;
+      }
+
+      // Before this session the student had one fewer record, all else equal.
+      const previous = held === 1 ? 100 : (attended / (held - 1)) * 100;
+      const justCrossed = previous >= threshold;
+      if (!justCrossed) {
+        continue;
+      }
+
+      const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+      if (!student) {
+        continue;
+      }
+
+      await this.notifications.notify({
+        userId: student.userId,
+        type: NotificationType.LOW_ATTENDANCE_WARNING,
+        title: 'Attendance below threshold',
+        message: 'Your current attendance is below the recommended threshold.',
+      });
+    }
+  }
+
   // ----------------------------------------------------------------- helpers
 
   /** Overall attendance across every subject the student is enrolled in. */
@@ -571,9 +689,7 @@ export class AttendanceService {
     if (!student) {
       return;
     }
-    await this.prisma.notification.create({
-      data: { userId: student.userId, type, title, message },
-    });
+    await this.notifications.notify({ userId: student.userId, type, title, message });
   }
 
   private async auditRejection(sessionId: string, reason: string): Promise<void> {

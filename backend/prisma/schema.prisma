@@ -126,6 +126,7 @@ model User {
   refreshTokens RefreshToken[]
   notifications Notification[]
   auditLogs     AuditLog[]
+  deviceTokens  DeviceToken[]
 
   @@index([institutionId])
   @@map("users")
@@ -340,6 +341,25 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+/// A device registered to receive push notifications (Section 32).
+///
+/// Registration works today; delivery is inert until a Firebase project and
+/// google-services.json are provided, at which point the push sender is bound
+/// to a real FCM transport and these rows start being used.
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now()) @map("created_at")
+  lastSeenAt DateTime @updatedAt @map("last_seen_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }
 
 /// Who did what, to which entity, when (Section 35).

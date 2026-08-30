@@ -35,6 +35,7 @@ object Routes {
 object StudentRoutes {
     const val HOME = "student/home"
     const val ATTENDANCE = "student/attendance"
+    const val ANALYTICS = "student/analytics"
     const val HISTORY = "student/history"
     const val NOTIFICATIONS = "student/notifications"
     const val PROFILE = "student/profile"
@@ -46,6 +47,7 @@ object TeacherRoutes {
     const val ATTENDANCE = "teacher/attendance"
     const val CLASSES = "teacher/classes"
     const val ANALYTICS = "teacher/analytics"
+    const val REPORTS = "teacher/reports"
     const val PROFILE = "teacher/profile"
 }
 
@@ -53,5 +55,7 @@ object TeacherRoutes {
 object AdminRoutes {
     const val OVERVIEW = "admin/overview"
     const val PEOPLE = "admin/people"
+    const val ANALYTICS = "admin/analytics"
+    const val REPORTS = "admin/reports"
     const val PROFILE = "admin/profile"
 }

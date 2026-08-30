@@ -48,7 +48,7 @@ fun QrDisplay(
     /** Dims and shrinks slightly as the code approaches expiry. */
     freshness: Float = 1f,
 ) {
-    val image = remember(token) { encodeQr(token) }
+    val image = remember(token) { encodeAttendanceQr(token) }
 
     val scale by animateFloatAsState(
         targetValue = 0.97f + 0.03f * freshness.coerceIn(0f, 1f),
@@ -80,12 +80,15 @@ fun QrDisplay(
 }
 
 /**
- * Encodes to a black-and-white bitmap.
+ * Encodes a token to a black-and-white bitmap.
  *
  * Returns null rather than throwing if the payload cannot be encoded: a QR that
  * fails to render is a blank plate the student can refresh, not a crash.
+ *
+ * Internal rather than private so the instrumented round-trip test can prove
+ * that what this produces is what ML Kit reads back.
  */
-private fun encodeQr(token: String, sizePx: Int = 512): ImageBitmap? = runCatching {
+internal fun encodeAttendanceQr(token: String, sizePx: Int = 512): ImageBitmap? = runCatching {
     val hints = mapOf(
         // High correction tolerates a scuffed or partly obscured screen.
         EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.H,

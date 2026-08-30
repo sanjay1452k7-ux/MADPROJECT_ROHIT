@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Only the reports directory is shared. Nothing else in the app's storage is
+  exposed to other applications.
+-->
+<paths>
+    <external-files-path name="reports" path="reports/" />
+</paths>

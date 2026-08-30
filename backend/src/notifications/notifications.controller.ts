@@ -1,43 +1,60 @@
-import { Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   AuthenticatedPrincipal,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { PrismaService } from '../common/prisma/prisma.service';
+import { RegisterDeviceDto } from './dto/device-token.dto';
+import { NotificationsService } from './notifications.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly notifications: NotificationsService) {}
 
   @Get()
-  async list(@CurrentUser() user: AuthenticatedPrincipal) {
-    const items = await this.prisma.notification.findMany({
-      where: { userId: user.userId },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-    return items.map((n) => ({
-      id: n.id,
-      type: n.type,
-      title: n.title,
-      message: n.message,
-      timestamp: n.createdAt.toISOString(),
-      isRead: n.isRead,
-    }));
+  list(@CurrentUser() user: AuthenticatedPrincipal) {
+    return this.notifications.listFor(user.userId);
+  }
+
+  @Get('unread-count')
+  async unreadCount(@CurrentUser() user: AuthenticatedPrincipal) {
+    return { count: await this.notifications.unreadCount(user.userId) };
+  }
+
+  @Patch(':id/read')
+  async markRead(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id') id: string,
+  ) {
+    await this.notifications.markRead(user.userId, id);
+    return { ok: true };
+  }
+
+  @Patch('read-all')
+  async markAllRead(@CurrentUser() user: AuthenticatedPrincipal) {
+    await this.notifications.markAllRead(user.userId);
+    return { ok: true };
   }
 
   /**
-   * Scoped by userId as well as id, so one user cannot mark another user's
-   * notification read by guessing an identifier.
+   * Registers this device for push (Section 32).
+   *
+   * Accepted and stored today; delivery begins the moment a Firebase project
+   * is configured, with no client change.
    */
-  @Patch(':id/read')
-  async markRead(@CurrentUser() user: AuthenticatedPrincipal, @Param('id') id: string) {
-    await this.prisma.notification.updateMany({
-      where: { id, userId: user.userId },
-      data: { isRead: true },
-    });
+  @Post('device-token')
+  async registerDevice(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Body() dto: RegisterDeviceDto,
+  ) {
+    await this.notifications.registerDevice(user.userId, dto.token, dto.platform);
+    return { pushConfigured: this.notifications.pushConfigured };
+  }
+
+  @Delete('device-token/:token')
+  async unregisterDevice(@Param('token') token: string) {
+    await this.notifications.unregisterDevice(token);
     return { ok: true };
   }
 }

@@ -246,66 +246,6 @@ fun TeacherClassesScreen(
     }
 }
 
-/** Cohort analytics available without the backend (Section 15). */
-@Composable
-fun TeacherAnalyticsScreen(
-    viewModel: TeacherViewModel,
-    modifier: Modifier = Modifier,
-) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-
-    Column(modifier = modifier.fillMaxSize()) {
-        AppTopBar(title = "Analytics", subtitle = "Cohort performance")
-
-        when (val current = state) {
-            UiState.Loading -> LoadingBody()
-
-            is UiState.Failed -> ErrorState(
-                icon = Icons.Outlined.CloudOff,
-                title = current.error.title,
-                message = current.error.message,
-                onRetry = if (current.error.isRetryable) viewModel::load else null,
-            )
-
-            is UiState.Content -> {
-                val dashboard = current.data
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = AppTheme.spacing.screenGutter),
-                    verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-                ) {
-                    AppCard {
-                        Text(
-                            text = "COHORT AVERAGE",
-                            style = AppTheme.typography.overline,
-                            color = AppTheme.colors.textTertiary,
-                        )
-                        Text(
-                            text = formatPercentage(dashboard.averageAttendance),
-                            style = AppTheme.typography.metricSmall,
-                            color = AppTheme.colors.textPrimary,
-                            modifier = Modifier.padding(top = AppTheme.spacing.sm),
-                        )
-                        ProgressBar(
-                            fraction = dashboard.averageAttendance / 100f,
-                            belowThreshold = dashboard.averageAttendance < viewModel.policy.threshold,
-                            modifier = Modifier.padding(top = AppTheme.spacing.md),
-                        )
-                    }
-
-                    Text(
-                        text = "Trend charts and subject breakdowns arrive with the " +
-                            "analytics milestone.",
-                        style = AppTheme.typography.bodyMedium,
-                        color = AppTheme.colors.textTertiary,
-                    )
-                }
-            }
-        }
-    }
-}
-
 /** Teacher profile. */
 @Composable
 fun TeacherProfileScreen(

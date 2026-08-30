@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
@@ -17,6 +18,8 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,20 +30,25 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cit.attendance.core.designsystem.component.AppBottomBar
 import com.cit.attendance.core.designsystem.component.BottomNavItem
+import com.cit.attendance.core.designsystem.component.SegmentedTabs
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.core.navigation.AdminRoutes
+import com.cit.attendance.domain.model.ReportType
 import com.cit.attendance.core.navigation.StudentRoutes
 import com.cit.attendance.core.navigation.TeacherRoutes
 import com.cit.attendance.feature.admin.AdminOverviewScreen
 import com.cit.attendance.feature.admin.AdminPeopleScreen
 import com.cit.attendance.feature.admin.AdminProfileScreen
 import com.cit.attendance.feature.admin.AdminViewModel
+import com.cit.attendance.feature.analytics.AdminAnalyticsScreen
+import com.cit.attendance.feature.analytics.ReportsScreen
+import com.cit.attendance.feature.analytics.StudentAnalyticsScreen
+import com.cit.attendance.feature.analytics.TeacherAnalyticsScreen
 import com.cit.attendance.feature.student.StudentHistoryScreen
 import com.cit.attendance.feature.student.StudentHomeScreen
 import com.cit.attendance.feature.student.StudentNotificationsScreen
 import com.cit.attendance.feature.student.StudentProfileScreen
 import com.cit.attendance.feature.student.StudentQrScreen
-import com.cit.attendance.feature.teacher.TeacherAnalyticsScreen
 import com.cit.attendance.feature.teacher.TeacherClassesScreen
 import com.cit.attendance.feature.teacher.TeacherHomeScreen
 import com.cit.attendance.feature.teacher.TeacherProfileScreen
@@ -68,7 +76,7 @@ fun StudentShell(
     val items = listOf(
         BottomNavItem(StudentRoutes.HOME, "Home", Icons.Outlined.Dashboard),
         BottomNavItem(StudentRoutes.ATTENDANCE, "Attend", Icons.Outlined.QrCode2),
-        BottomNavItem(StudentRoutes.HISTORY, "History", Icons.Outlined.History),
+        BottomNavItem(StudentRoutes.ANALYTICS, "Insights", Icons.Outlined.Insights),
         BottomNavItem(
             route = StudentRoutes.NOTIFICATIONS,
             label = "Alerts",
@@ -91,7 +99,7 @@ fun StudentShell(
         when (selectedRoute) {
             StudentRoutes.HOME -> StudentHomeScreen()
             StudentRoutes.ATTENDANCE -> StudentQrScreen()
-            StudentRoutes.HISTORY -> StudentHistoryScreen()
+            StudentRoutes.ANALYTICS -> StudentInsights()
             StudentRoutes.NOTIFICATIONS -> StudentNotificationsScreen()
             StudentRoutes.PROFILE -> StudentProfileScreen(onSignOut = shellViewModel::signOut)
         }
@@ -132,7 +140,7 @@ fun TeacherShell(
                 sessionViewModel = sessionViewModel,
             )
             TeacherRoutes.CLASSES -> TeacherClassesScreen(viewModel = teacherViewModel)
-            TeacherRoutes.ANALYTICS -> TeacherAnalyticsScreen(viewModel = teacherViewModel)
+            TeacherRoutes.ANALYTICS -> TeacherInsights()
             TeacherRoutes.PROFILE -> TeacherProfileScreen(
                 viewModel = teacherViewModel,
                 onSignOut = shellViewModel::signOut,
@@ -153,6 +161,7 @@ fun AdminShell(
     val items = listOf(
         BottomNavItem(AdminRoutes.OVERVIEW, "Overview", Icons.Outlined.CalendarMonth),
         BottomNavItem(AdminRoutes.PEOPLE, "People", Icons.Outlined.Groups),
+        BottomNavItem(AdminRoutes.ANALYTICS, "Insights", Icons.Outlined.Insights),
         BottomNavItem(AdminRoutes.PROFILE, "Profile", Icons.Outlined.AccountCircle),
     )
 
@@ -165,6 +174,7 @@ fun AdminShell(
         when (selectedRoute) {
             AdminRoutes.OVERVIEW -> AdminOverviewScreen(viewModel = adminViewModel)
             AdminRoutes.PEOPLE -> AdminPeopleScreen(viewModel = adminViewModel)
+            AdminRoutes.ANALYTICS -> AdminInsights()
             AdminRoutes.PROFILE -> AdminProfileScreen(
                 viewModel = adminViewModel,
                 onSignOut = shellViewModel::signOut,
@@ -236,5 +246,87 @@ private fun TeacherAttendanceFlow(
                 step = AttendanceStep.LIVE
             },
         )
+    }
+}
+
+/** The report types staff may request. Mirrored by the server (Section 34). */
+private val staffReportTypes = listOf(
+    ReportType.CLASS_ATTENDANCE,
+    ReportType.SUBJECT_ATTENDANCE,
+    ReportType.LOW_ATTENDANCE,
+    ReportType.ABSENTEE,
+)
+
+/**
+ * The student's Insights tab.
+ *
+ * Analytics, the existing history list and reports are siblings here rather
+ * than three separate bottom-bar destinations.
+ */
+@Composable
+private fun StudentInsights() {
+    var segment by remember { mutableStateOf(0) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        SegmentedTabs(
+            options = listOf("Analytics", "History", "Reports"),
+            selectedIndex = segment,
+            onSelect = { segment = it },
+            modifier = Modifier.padding(
+                horizontal = AppTheme.spacing.screenGutter,
+                vertical = AppTheme.spacing.sm,
+            ),
+        )
+        when (segment) {
+            0 -> StudentAnalyticsScreen()
+            1 -> StudentHistoryScreen()
+            else -> ReportsScreen(availableTypes = listOf(ReportType.STUDENT_ATTENDANCE))
+        }
+    }
+}
+
+/** The teacher's Analytics tab: cohort analytics and report generation. */
+@Composable
+private fun TeacherInsights() {
+    var segment by remember { mutableStateOf(0) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        SegmentedTabs(
+            options = listOf("Analytics", "Reports"),
+            selectedIndex = segment,
+            onSelect = { segment = it },
+            modifier = Modifier.padding(
+                horizontal = AppTheme.spacing.screenGutter,
+                vertical = AppTheme.spacing.sm,
+            ),
+        )
+        if (segment == 0) {
+            TeacherAnalyticsScreen()
+        } else {
+            ReportsScreen(availableTypes = staffReportTypes)
+        }
+    }
+}
+
+/** The administrator's Insights tab. */
+@Composable
+private fun AdminInsights() {
+    var segment by remember { mutableStateOf(0) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        SegmentedTabs(
+            options = listOf("Analytics", "Reports"),
+            selectedIndex = segment,
+            onSelect = { segment = it },
+            modifier = Modifier.padding(
+                horizontal = AppTheme.spacing.screenGutter,
+                vertical = AppTheme.spacing.sm,
+            ),
+        )
+        if (segment == 0) {
+            AdminAnalyticsScreen()
+        } else {
+            ReportsScreen(availableTypes = staffReportTypes)
+        }
     }
 }
