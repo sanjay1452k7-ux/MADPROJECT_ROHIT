@@ -1,0 +1,25 @@
+# Gradle / build
+.gradle/
+build/
+captures/
+.cxx/
+
+# Android Studio / IDE
+.idea/
+*.iml
+local.properties
+
+# Secrets — never commit (Section 34, Section 43)
+google-services.json
+*.env
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+
+# OS
+.DS_Store
+Thumbs.db
