@@ -1,7 +1,9 @@
 package com.cit.attendance.feature.teacher
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -81,6 +83,7 @@ fun AttendanceScannerScreen(
         )
     }
     var permissionRequested by remember { mutableStateOf(false) }
+    var cameraFailure by remember { mutableStateOf<String?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -103,6 +106,17 @@ fun AttendanceScannerScreen(
         if (!hasCameraPermission) {
             CameraPermissionDenied(
                 onRetry = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                onOpenSettings = { openAppSettings(context) },
+                onClose = onClose,
+            )
+            return@Column
+        }
+
+        val failure = cameraFailure
+        if (failure != null) {
+            CameraUnavailable(
+                message = failure,
+                onRetry = { cameraFailure = null },
                 onClose = onClose,
             )
             return@Column
@@ -116,6 +130,10 @@ fun AttendanceScannerScreen(
                     totalStudents = state.session?.totalStudents ?: 0,
                     onCodeScanned = viewModel::onCodeScanned,
                     onClose = onClose,
+                    onCameraUnavailable = {
+                        cameraFailure =
+                            "The camera could not be started. It may be in use by another app."
+                    },
                 )
 
                 is ScanStage.AwaitingConfirmation -> StudentVerificationCard(
@@ -150,12 +168,14 @@ private fun ScannerSurface(
     totalStudents: Int,
     onCodeScanned: (String) -> Unit,
     onClose: () -> Unit,
+    onCameraUnavailable: (Throwable) -> Unit,
 ) {
     val colors = AppTheme.colors
 
     Box(modifier = Modifier.fillMaxSize()) {
         QrScannerView(
             onCodeScanned = onCodeScanned,
+            onCameraUnavailable = onCameraUnavailable,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -454,7 +474,11 @@ private fun ScanRejectedPanel(
 
 /** Camera permission is a normal state to handle, not an error (Section 37). */
 @Composable
-private fun CameraPermissionDenied(onRetry: () -> Unit, onClose: () -> Unit) {
+private fun CameraPermissionDenied(
+    onRetry: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onClose: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -482,6 +506,60 @@ private fun CameraPermissionDenied(onRetry: () -> Unit, onClose: () -> Unit) {
             textAlign = TextAlign.Center,
         )
         PrimaryButton(text = "Allow camera", onClick = onRetry)
+        SecondaryButton(text = "Open app settings", onClick = onOpenSettings)
         SecondaryButton(text = "Go back", onClick = onClose)
     }
+}
+
+/** Shown when the camera exists but will not start (Section 37). */
+@Composable
+private fun CameraUnavailable(
+    message: String,
+    onRetry: () -> Unit,
+    onClose: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(AppTheme.spacing.screenGutter),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.NoPhotography,
+            contentDescription = null,
+            tint = AppTheme.colors.error,
+            modifier = Modifier
+                .padding(top = AppTheme.spacing.xxl)
+                .size(32.dp),
+        )
+        Text(
+            text = "Camera unavailable",
+            style = AppTheme.typography.titleMedium,
+            color = AppTheme.colors.textPrimary,
+        )
+        Text(
+            text = message,
+            style = AppTheme.typography.bodyMedium,
+            color = AppTheme.colors.textSecondary,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = "Attendance can still be recorded manually from the session screen.",
+            style = AppTheme.typography.bodyMedium,
+            color = AppTheme.colors.textTertiary,
+            textAlign = TextAlign.Center,
+        )
+        PrimaryButton(text = "Try again", onClick = onRetry)
+        SecondaryButton(text = "Go back", onClick = onClose)
+    }
+}
+
+/** Opens this app's system settings page so a blocked permission can be granted. */
+private fun openAppSettings(context: android.content.Context) {
+    val intent = Intent(
+        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.fromParts("package", context.packageName, null),
+    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
 }

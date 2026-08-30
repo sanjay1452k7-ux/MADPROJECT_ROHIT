@@ -34,8 +34,8 @@ Copy `backend/.env.example` to `backend/.env` first and fill in the secrets.
 
 ### 3. Android app
 
-The debug build talks to `http://127.0.0.1:3000/`, tunnelled to the development
-machine by adb. Run this once per device or emulator:
+The debug build defaults to `http://127.0.0.1:3000/`, tunnelled to the
+development machine by adb. Run this once per attached device or emulator:
 
 ```bash
 adb reverse tcp:3000 tcp:3000
@@ -46,6 +46,16 @@ Then open the project in Android Studio and run `app`, or:
 ```bash
 ./gradlew :app:installDebug
 ```
+
+**For a phone on the same Wi-Fi instead of USB**, build with the development
+machine's LAN address — no code change, no `adb reverse`:
+
+```bash
+./gradlew :app:installDebug -PcitApiBaseUrl=http://192.168.1.5:3000/
+```
+
+Release builds ignore this and use HTTPS; they carry no cleartext exception at
+all.
 
 `local.properties` is generated per machine and is not committed. If Gradle
 cannot find the SDK, create it with a single line pointing at your SDK, escaping
@@ -82,6 +92,8 @@ cd backend && npx tsc --noEmit && npx jest && npm run build
 | Android lint | 0 errors, 0 warnings |
 | Milestone 2 regression suite | 35/35 |
 | Milestone 3 suite | 36/36 |
+| Camera bind / release / rebind | Verified on device |
+| Camera permission grant / denial / revocation | Verified on device |
 
 The Milestone 3 suite covers analytics scoping, figure consistency, the honesty
 of the risk engine's self-description, absence recording on session close, the
@@ -179,22 +191,46 @@ configuration in `app/build.gradle.kts`, not literals in feature code:
 - `INSTITUTION_EMAIL_DOMAIN`
 - `ATTENDANCE_THRESHOLD_PERCENT` (currently 75)
 
-## Verifying the QR scan
+## The camera on a real phone
 
-The scan path is verified in two independent halves:
+The scanner is written for an ordinary handset, not for the development
+environment. The production path is: phone camera → CameraX → ML Kit →
+backend verification → teacher confirmation → attendance.
 
-- **Optical decode** — `QrRoundTripTest` runs on a device and pushes the real
-  encoder output through the real ML Kit barcode scanner, proving that what the
-  student's screen renders is what the teacher's scanner reads.
-- **Validation and recording** — the end-to-end suites exercise mint, verify,
-  confirm, duplicate, expiry, reuse, wrong session, unenrolled and closed
-  session against the live database.
+- **The device's own camera.** `QrScannerView` asks CameraX for the back camera
+  and falls back to the front camera on hardware without one. There is no
+  reference anywhere in `app/src/main` to an emulator, a laptop webcam, or a
+  specific AVD.
+- **Permission** is declared in the manifest and requested at runtime. Refusal
+  is a normal state, not an error: the screen explains what is needed, offers
+  **Allow camera**, offers **Open app settings** for a permanently blocked
+  permission, and points out that attendance can still be recorded manually.
+  Revoking the permission while the app runs is handled the same way.
+- **Lifecycle.** The scanner lives inside a tab rather than its own destination,
+  so the camera is explicitly unbound when the composable leaves. Verified on
+  device: the camera binds on entry, is fully released on exit
+  (`Active Camera Clients: []`), and rebinds cleanly across repeated cycles with
+  no crash.
+- **Failure is surfaced.** If the camera cannot start — held by another app, or
+  absent — the screen says so and points to the manual fallback, rather than
+  showing a black rectangle.
+- **Frames are dropped, not queued**, so a slow verification round trip cannot
+  build a backlog of stale codes, and rotation comes from the device's own
+  sensor so a code reads however the phone is held.
 
-What has *not* been exercised is a physical phone's camera photographing a
-second physical screen. The emulator's virtual scene cannot be aimed at a
-supplied poster from the command line, and no handset was attached. Everything
-between the camera frame and the database is covered; only lighting, focus and
-framing remain untested. **Try one scan on a real phone before the demo.**
+### What is verified, and what is not
+
+| Link in the chain | Status |
+| --- | --- |
+| Encoder output decodes through ML Kit | Verified on device (`QrRoundTripTest`) |
+| Camera binds, releases and rebinds | Verified on device via `dumpsys media.camera` |
+| Permission grant, denial and revocation | Verified on device |
+| Token mint, verify, confirm, expiry, reuse, duplicate | Verified against the live database |
+| **A physical phone's camera photographing a real screen** | **Not verified — no handset was attached** |
+
+Everything between a camera frame and the database is covered. What remains is
+the physical optics: lighting, focus and framing against a real screen. Install
+the APK on your phone, run one scan, and that last link is closed.
 
 ## Structure
 

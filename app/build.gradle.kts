@@ -6,6 +6,20 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+/**
+ * Where a debug build looks for the attendance service.
+ *
+ * The default suits a device attached over USB with
+ * "adb reverse tcp:3000 tcp:3000". For a phone on the same Wi-Fi as the
+ * development machine instead, build with the machine's LAN address:
+ *
+ *   ./gradlew :app:installDebug -PcitApiBaseUrl=http://192.168.1.5:3000/
+ *
+ * Release builds ignore this entirely and use HTTPS.
+ */
+val debugApiBaseUrl: String =
+    (project.findProperty("citApiBaseUrl") as String?) ?: "http://127.0.0.1:3000/"
+
 android {
     namespace = "com.cit.attendance"
     compileSdk = 37
@@ -29,11 +43,7 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
-            // Reached through "adb reverse tcp:3000 tcp:3000", which tunnels the
-            // device's own port 3000 to the development machine. This works for
-            // emulators and USB-attached phones alike and needs no firewall
-            // exception, unlike the 10.0.2.2 emulator route.
-            buildConfigField("String", "API_BASE_URL", "\"http://127.0.0.1:3000/\"")
+            buildConfigField("String", "API_BASE_URL", "\"$debugApiBaseUrl\"")
         }
         release {
             // Deployments must point at a real HTTPS host; there is no cleartext
