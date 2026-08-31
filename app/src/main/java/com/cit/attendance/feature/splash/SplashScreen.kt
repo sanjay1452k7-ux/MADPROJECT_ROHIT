@@ -22,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cit.attendance.core.designsystem.branding.ButterflyMark
 import com.cit.attendance.core.designsystem.branding.CitBrandLockup
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.domain.model.AuthenticatedUser
 
@@ -59,7 +60,7 @@ fun SplashScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.background),
+            .background(AppGradients.canvas()),
         contentAlignment = Alignment.Center,
     ) {
         Column(

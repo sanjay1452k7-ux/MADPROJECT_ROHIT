@@ -18,18 +18,24 @@ data class CitSpacing(
     val xxl: Dp = 32.dp,
     val xxxl: Dp = 48.dp,
     /** Horizontal page gutter, shared by every screen. */
-    val screenGutter: Dp = 20.dp,
+    val screenGutter: Dp = 16.dp,
     /** Minimum accessible touch target (Section 39). */
     val minTouchTarget: Dp = 48.dp,
 )
 
-/** Corner radii - controlled, never pill-shaped for containers (Section 5). */
+/**
+ * Corner radii. Softer than a stock Material set - the reference leans on
+ * generous rounding to make dark cards feel like objects rather than regions -
+ * but still never pill-shaped for containers (Section 5).
+ */
 @Immutable
 data class CitShapes(
-    val small: RoundedCornerShape = RoundedCornerShape(8.dp),
-    val medium: RoundedCornerShape = RoundedCornerShape(12.dp),
-    val large: RoundedCornerShape = RoundedCornerShape(16.dp),
-    val extraLarge: RoundedCornerShape = RoundedCornerShape(22.dp),
+    val small: RoundedCornerShape = RoundedCornerShape(10.dp),
+    val medium: RoundedCornerShape = RoundedCornerShape(14.dp),
+    val large: RoundedCornerShape = RoundedCornerShape(20.dp),
+    val extraLarge: RoundedCornerShape = RoundedCornerShape(28.dp),
+    /** Buttons and chips, which do read as pills in this design. */
+    val pill: RoundedCornerShape = RoundedCornerShape(percent = 50),
 )
 
 /**

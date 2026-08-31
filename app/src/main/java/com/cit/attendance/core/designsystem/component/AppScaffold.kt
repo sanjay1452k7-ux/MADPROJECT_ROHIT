@@ -1,6 +1,7 @@
 package com.cit.attendance.core.designsystem.component
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -32,6 +33,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 
 /**
@@ -104,7 +106,7 @@ fun AppBottomBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(colors.surface),
+            .background(colors.background),
     ) {
         Box(
             modifier = Modifier
@@ -150,6 +152,11 @@ private fun BottomNavCell(
         animationSpec = tween(motion.duration(motion.quick)),
         label = "navScale",
     )
+    val indicatorWidth by animateDpAsState(
+        targetValue = if (selected) 18.dp else 0.dp,
+        animationSpec = tween(motion.duration(motion.quick)),
+        label = "navIndicator",
+    )
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -188,10 +195,10 @@ private fun BottomNavCell(
         )
         Box(
             modifier = Modifier
-                .width(if (selected) 14.dp else 0.dp)
-                .height(2.dp)
+                .width(indicatorWidth)
+                .height(3.dp)
                 .clip(CircleShape)
-                .background(if (selected) colors.accentBright else colors.surface),
+                .background(AppGradients.horizontal()),
         )
     }
 }

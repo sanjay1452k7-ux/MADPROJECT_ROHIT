@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cit.attendance.core.designsystem.branding.ButterflyMark
 import com.cit.attendance.core.designsystem.component.AppCard
 import com.cit.attendance.core.designsystem.component.PrimaryButton
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.domain.model.AuthenticatedUser
 import com.cit.attendance.domain.model.UserRole
@@ -78,7 +79,7 @@ fun LoginScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.background),
+            .background(AppGradients.canvas()),
     ) {
         Column(
             modifier = Modifier

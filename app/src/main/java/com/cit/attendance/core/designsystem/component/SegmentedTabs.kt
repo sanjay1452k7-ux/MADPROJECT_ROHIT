@@ -13,11 +13,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 
 /**
@@ -39,7 +42,7 @@ fun SegmentedTabs(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(AppTheme.shapes.medium)
+            .clip(AppTheme.shapes.pill)
             .background(colors.surface)
             .padding(AppTheme.spacing.xxs),
     ) {
@@ -47,7 +50,7 @@ fun SegmentedTabs(
             val isSelected = index == selectedIndex
 
             val background by animateColorAsState(
-                targetValue = if (isSelected) colors.accent else colors.surface,
+                targetValue = if (isSelected) Color.Transparent else colors.surface,
                 animationSpec = tween(AppTheme.motion.duration(AppTheme.motion.quick)),
                 label = "segmentBackground",
             )
@@ -64,8 +67,8 @@ fun SegmentedTabs(
                         role = Role.Tab
                         selected = isSelected
                     }
-                    .clip(AppTheme.shapes.small)
-                    .background(background)
+                    .clip(AppTheme.shapes.pill)
+                    .background(if (isSelected) AppGradients.horizontal() else SolidColor(background))
                     .appClickable(onClickLabel = label) { onSelect(index) }
                     .padding(vertical = AppTheme.spacing.sm),
                 contentAlignment = Alignment.Center,

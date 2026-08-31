@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cit.attendance.core.designsystem.component.AppBottomBar
 import com.cit.attendance.core.designsystem.component.BottomNavItem
 import com.cit.attendance.core.designsystem.component.SegmentedTabs
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.core.navigation.AdminRoutes
 import com.cit.attendance.domain.model.ReportType
@@ -196,7 +198,7 @@ private fun ShellScaffold(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(AppTheme.colors.background)
+            .background(AppGradients.canvas())
             .windowInsetsPadding(WindowInsets.statusBars),
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -266,7 +268,7 @@ private val staffReportTypes = listOf(
  */
 @Composable
 private fun StudentInsights() {
-    var segment by remember { mutableStateOf(0) }
+    var segment by remember { mutableIntStateOf(0) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SegmentedTabs(
@@ -289,7 +291,7 @@ private fun StudentInsights() {
 /** The teacher's Analytics tab: cohort analytics and report generation. */
 @Composable
 private fun TeacherInsights() {
-    var segment by remember { mutableStateOf(0) }
+    var segment by remember { mutableIntStateOf(0) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SegmentedTabs(
@@ -312,7 +314,7 @@ private fun TeacherInsights() {
 /** The administrator's Insights tab. */
 @Composable
 private fun AdminInsights() {
-    var segment by remember { mutableStateOf(0) }
+    var segment by remember { mutableIntStateOf(0) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SegmentedTabs(

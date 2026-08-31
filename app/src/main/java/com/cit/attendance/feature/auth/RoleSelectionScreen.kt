@@ -37,6 +37,7 @@ import com.cit.attendance.core.designsystem.branding.ButterflyMark
 import com.cit.attendance.core.designsystem.branding.CitBrandLockup
 import com.cit.attendance.core.designsystem.component.PrimaryButton
 import com.cit.attendance.core.designsystem.component.RoleCard
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.domain.model.UserRole
 
@@ -113,7 +114,7 @@ fun RoleSelectionScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.background),
+            .background(AppGradients.canvas()),
     ) {
         // Ambient purple wash, strongest behind the brand mark and fading out
         // well before the content begins.

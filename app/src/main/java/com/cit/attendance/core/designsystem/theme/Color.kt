@@ -7,14 +7,16 @@ import androidx.compose.ui.graphics.Color
 /**
  * Single source of truth for colour (Section 4).
  *
- * The foundation is near-black; purple is an accent reserved for action,
- * selection, identity and focus. Nothing else in the codebase may declare a
- * literal [Color] - always read from [AppTheme.colors].
+ * The foundation is near-black; the accent runs coral through magenta into
+ * violet and is reserved for action, selection, identity and focus. Nothing
+ * else in the codebase may declare a literal [Color] - always read from
+ * [AppTheme.colors].
  */
 @Immutable
 data class CitColors(
     // Foundation
     val background: Color,
+    val backgroundElevated: Color,
     val surface: Color,
     val surfaceElevated: Color,
     val surfaceVariant: Color,
@@ -27,8 +29,17 @@ data class CitColors(
     // Accent
     val accent: Color,
     val accentBright: Color,
+    val accentDeep: Color,
     val accentMuted: Color,
     val onAccent: Color,
+    /**
+     * The brand gradient, coral to violet. Held as an ordered list so every
+     * gradient in the app is struck from the same three stops rather than each
+     * component inventing its own pair.
+     */
+    val accentGradient: List<Color>,
+    /** Laid under accented surfaces to suggest a glow without a real shadow. */
+    val accentGlow: Color,
 
     // Text
     val textPrimary: Color,
@@ -45,34 +56,46 @@ data class CitColors(
 )
 
 /**
- * The product palette. Deep purple carries identity, electric purple carries
- * interaction; every status colour is desaturated enough to sit calmly on black.
+ * The product palette.
+ *
+ * The canvas is a near-black charcoal that lifts very slightly towards the
+ * bottom of a screen; cards sit a step above it. Coral carries urgency,
+ * magenta carries identity and violet carries depth - together they are the
+ * brand, and no single one of them is used alone for a large fill.
  */
 val CitDarkColors = CitColors(
-    background = Color(0xFF07070A),
-    surface = Color(0xFF0E0E14),
-    surfaceElevated = Color(0xFF15151E),
-    surfaceVariant = Color(0xFF1C1C27),
-    scrim = Color(0xCC040406),
+    background = Color(0xFF0D0F14),
+    backgroundElevated = Color(0xFF1A1C23),
+    surface = Color(0xFF151821),
+    surfaceElevated = Color(0xFF1C1F2A),
+    surfaceVariant = Color(0xFF232733),
+    scrim = Color(0xCC07080B),
 
-    outline = Color(0xFF262633),
-    outlineStrong = Color(0xFF3A3A4D),
+    outline = Color(0xFF262A36),
+    outlineStrong = Color(0xFF393F51),
 
-    accent = Color(0xFF7C3AED),
-    accentBright = Color(0xFFB57BFF),
-    accentMuted = Color(0x297C3AED),
+    accent = Color(0xFFFF2E8E),
+    accentBright = Color(0xFFFF4D70),
+    accentDeep = Color(0xFF9B5CFF),
+    accentMuted = Color(0x29FF2E8E),
     onAccent = Color(0xFFFFFFFF),
+    accentGradient = listOf(
+        Color(0xFFFF4D70),
+        Color(0xFFFF2E8E),
+        Color(0xFF9B5CFF),
+    ),
+    accentGlow = Color(0x33FF2E8E),
 
-    textPrimary = Color(0xFFF4F4F7),
-    textSecondary = Color(0xFFA0A0B4),
-    textTertiary = Color(0xFF6C6C84),
+    textPrimary = Color(0xFFFFFFFF),
+    textSecondary = Color(0xFFA1A1AA),
+    textTertiary = Color(0xFF6C7080),
 
     success = Color(0xFF3DD68C),
     successMuted = Color(0x243DD68C),
     warning = Color(0xFFF5A524),
     warningMuted = Color(0x24F5A524),
-    error = Color(0xFFF04438),
-    errorMuted = Color(0x24F04438),
+    error = Color(0xFFFF4D70),
+    errorMuted = Color(0x24FF4D70),
 )
 
 val LocalCitColors = staticCompositionLocalOf { CitDarkColors }

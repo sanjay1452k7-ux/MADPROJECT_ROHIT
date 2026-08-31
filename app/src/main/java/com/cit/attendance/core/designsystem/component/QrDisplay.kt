@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -24,6 +25,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -56,25 +58,52 @@ fun QrDisplay(
         label = "qrScale",
     )
 
+    val colors = AppTheme.colors
+    val shapes = AppTheme.shapes
+
     Box(
-        modifier = modifier
-            .size(size)
-            .scale(scale)
-            .clip(AppTheme.shapes.large)
-            .background(Color.White)
-            .padding(AppTheme.spacing.md)
-            .semantics { contentDescription = "Your attendance QR code" },
+        modifier = modifier.scale(scale),
         contentAlignment = Alignment.Center,
     ) {
-        if (image != null) {
-            Image(
-                bitmap = image,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
+        // The halo, drawn behind and slightly larger than the plate.
+        Box(
+            modifier = Modifier
+                .size(size + AppTheme.spacing.xxl)
+                .background(AppGradients.glow(alpha = freshness.coerceIn(0f, 1f)), CircleShape),
+        )
+
+        Box(
+            modifier = Modifier
+                .clip(shapes.extraLarge)
+                .background(AppGradients.diagonal())
+                // The gradient shows only as a border: the padding is the
+                // stroke width.
+                .padding(2.dp)
+                .clip(shapes.extraLarge)
+                .background(colors.surface)
+                .padding(AppTheme.spacing.md),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
                 modifier = Modifier
                     .size(size)
-                    .alpha(0.45f + 0.55f * freshness.coerceIn(0f, 1f)),
-            )
+                    .clip(shapes.large)
+                    .background(Color.White)
+                    .padding(AppTheme.spacing.sm)
+                    .semantics { contentDescription = "Your attendance QR code" },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (image != null) {
+                    Image(
+                        bitmap = image,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .size(size)
+                            .alpha(0.45f + 0.55f * freshness.coerceIn(0f, 1f)),
+                    )
+                }
+            }
         }
     }
 }

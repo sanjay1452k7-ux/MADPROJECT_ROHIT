@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.core.ui.formatPercentage
 import com.cit.attendance.domain.model.AttendanceStanding
@@ -84,7 +85,7 @@ fun AttendanceRing(
             // Progress
             drawArc(
                 brush = Brush.sweepGradient(
-                    colors = listOf(colors.accent, ringColor, colors.accent),
+                    colors = listOf(colors.accentBright, ringColor, colors.accentDeep),
                 ),
                 startAngle = START_ANGLE,
                 sweepAngle = FULL_SWEEP * sweep,

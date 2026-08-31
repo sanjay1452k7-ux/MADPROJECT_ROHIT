@@ -40,7 +40,7 @@ fun CitEmblem(
         val stroke = (box * 0.055f).coerceAtLeast(1.5f)
 
         val brush = Brush.linearGradient(
-            colors = listOf(colors.accentBright, colors.accent),
+            colors = colors.accentGradient,
             start = Offset(0f, 0f),
             end = Offset(box, box),
         )

@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.core.ui.formatPercentage
 import kotlin.math.abs
@@ -105,6 +106,10 @@ fun TrendChart(
             }
         }
 
+        // Built here rather than in the draw scope: brushes read theme state,
+        // which is only available while composing.
+        val areaBrush = AppGradients.areaFill()
+
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -164,9 +169,7 @@ fun TrendChart(
                 }
                 drawPath(
                     path = fill,
-                    brush = Brush.verticalGradient(
-                        listOf(colors.accent.copy(alpha = 0.28f), colors.accent.copy(alpha = 0f)),
-                    ),
+                    brush = areaBrush,
                 )
                 drawPath(
                     path = line,
@@ -178,7 +181,7 @@ fun TrendChart(
             shown.forEachIndexed { index, point ->
                 val isSelected = index == selectedIndex
                 drawCircle(
-                    color = if (isSelected) colors.accentBright else colors.surfaceVariant,
+                    color = if (isSelected) colors.accent else colors.surfaceVariant,
                     radius = if (isSelected) 6f else 3.5f,
                     center = point,
                 )

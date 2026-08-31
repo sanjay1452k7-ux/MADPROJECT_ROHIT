@@ -111,8 +111,9 @@ fun ButterflyMark(
                 openness = openness,
                 strokeBrush = Brush.linearGradient(
                     colors = listOf(
-                        colors.accent.copy(alpha = strokeAlpha),
                         colors.accentBright.copy(alpha = strokeAlpha),
+                        colors.accent.copy(alpha = strokeAlpha),
+                        colors.accentDeep.copy(alpha = strokeAlpha),
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(size.width, size.height),
@@ -120,7 +121,7 @@ fun ButterflyMark(
                 fillBrush = Brush.verticalGradient(
                     colors = listOf(
                         colors.accent.copy(alpha = 0.16f + 0.12f * emphasis),
-                        colors.accentBright.copy(alpha = 0.04f),
+                        colors.accentDeep.copy(alpha = 0.04f),
                     ),
                 ),
             )

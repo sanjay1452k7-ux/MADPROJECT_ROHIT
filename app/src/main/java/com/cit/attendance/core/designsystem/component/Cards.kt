@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 import com.cit.attendance.core.ui.formatPercentage
 import com.cit.attendance.core.ui.rememberDateFormatter
@@ -206,7 +208,13 @@ fun ProgressBar(
                 .fillMaxWidth(fraction.coerceIn(0f, 1f))
                 .height(4.dp)
                 .clip(CircleShape)
-                .background(if (belowThreshold) colors.warning else colors.accentBright),
+                .background(
+                    if (belowThreshold) {
+                        SolidColor(colors.warning)
+                    } else {
+                        AppGradients.horizontal()
+                    },
+                ),
         )
     }
 }

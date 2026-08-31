@@ -45,6 +45,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -220,7 +224,13 @@ private fun ScannerSurface(
     }
 }
 
-/** The frame and its sweeping line: the only decoration on this screen. */
+/**
+ * The corner brackets and sweeping line: the only decoration on this screen.
+ *
+ * Brackets rather than a closed rectangle - they mark the target area without
+ * drawing a continuous edge across the scene, which is both the reference
+ * treatment and easier to aim inside.
+ */
 @Composable
 private fun ScanningFrame(isValidating: Boolean) {
     val colors = AppTheme.colors
@@ -237,30 +247,68 @@ private fun ScanningFrame(isValidating: Boolean) {
         label = "sweep",
     )
 
+    val bracket = colors.accent
+    val bracketIdle = colors.accentBright
+
     Box(
         modifier = Modifier
-            .fillMaxWidth(0.78f)
-            .aspectRatio(1f)
-            .clip(AppTheme.shapes.extraLarge)
-            .border(
-                width = 2.dp,
-                color = if (isValidating) colors.accentBright else colors.outlineStrong,
-                shape = AppTheme.shapes.extraLarge,
-            ),
+            .fillMaxWidth(0.72f)
+            .aspectRatio(1f),
         contentAlignment = Alignment.Center,
     ) {
-        if (isValidating) {
-            CircularProgressIndicator(color = colors.accentBright)
-        } else if (!motion.reduceMotion) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val y = size.height * sweep
-                drawLine(
-                    color = colors.accentBright,
-                    start = androidx.compose.ui.geometry.Offset(0f, y),
-                    end = androidx.compose.ui.geometry.Offset(size.width, y),
-                    strokeWidth = 2.5f,
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val stroke = 6f
+            // Inset by half the stroke, otherwise the outer half of each line
+            // is drawn beyond the canvas and clipped away.
+            val edge = stroke / 2f
+            val arm = size.minDimension * 0.18f
+            val elbow = 36f
+            val colour = if (isValidating) bracket else bracketIdle
+
+            val left = edge
+            val top = edge
+            val right = size.width - edge
+            val bottom = size.height - edge
+
+            /**
+             * One corner, drawn as a single path so the two arms actually meet:
+             * in from the horizontal, a rounded turn, back out the vertical.
+             */
+            fun corner(x: Float, y: Float, dx: Float, dy: Float) {
+                val path = Path().apply {
+                    moveTo(x + dx * arm, y)
+                    lineTo(x + dx * elbow, y)
+                    quadraticTo(x, y, x, y + dy * elbow)
+                    lineTo(x, y + dy * arm)
+                }
+                drawPath(
+                    path = path,
+                    color = colour,
+                    style = Stroke(width = stroke, cap = StrokeCap.Round),
                 )
             }
+
+            corner(left, top, 1f, 1f)
+            corner(right, top, -1f, 1f)
+            corner(left, bottom, 1f, -1f)
+            corner(right, bottom, -1f, -1f)
+
+            if (!isValidating && !motion.reduceMotion) {
+                // The sweep is inset so it never crosses the brackets.
+                val y = size.height * sweep
+                val inset = size.width * 0.12f
+                drawLine(
+                    color = colour.copy(alpha = 0.85f),
+                    start = Offset(inset, y),
+                    end = Offset(size.width - inset, y),
+                    strokeWidth = 3f,
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
+
+        if (isValidating) {
+            CircularProgressIndicator(color = colors.accent)
         }
     }
 }

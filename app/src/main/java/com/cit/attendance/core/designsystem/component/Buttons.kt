@@ -23,8 +23,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
+import com.cit.attendance.core.designsystem.theme.AppGradients
 import com.cit.attendance.core.designsystem.theme.AppTheme
 
 /**
@@ -62,12 +64,26 @@ fun PrimaryButton(
             .fillMaxWidth()
             .scale(scale)
             .defaultMinSize(minHeight = AppTheme.spacing.minTouchTarget)
-            .clip(shapes.medium)
+            // The glow is cast by the button itself, so it tracks the press
+            // scale and disappears with the disabled state.
+            .then(
+                if (active) {
+                    Modifier.shadow(
+                        elevation = AppTheme.elevation.overlay,
+                        shape = shapes.pill,
+                        ambientColor = colors.accent,
+                        spotColor = colors.accent,
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .clip(shapes.pill)
             .background(
                 brush = if (active) {
-                    Brush.horizontalGradient(listOf(colors.accent, colors.accentBright))
+                    AppGradients.horizontal()
                 } else {
-                    Brush.horizontalGradient(listOf(colors.surfaceVariant, colors.surfaceVariant))
+                    SolidColor(colors.surfaceVariant)
                 },
             )
             .appClickable(
@@ -133,8 +149,8 @@ fun SecondaryButton(
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = AppTheme.spacing.minTouchTarget)
-            .clip(shapes.medium)
-            .border(1.dp, borderColor, shapes.medium)
+            .clip(shapes.pill)
+            .border(1.dp, borderColor, shapes.pill)
             .appClickable(
                 enabled = enabled,
                 interactionSource = interactionSource,

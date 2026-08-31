@@ -48,8 +48,8 @@ fun SeededAvatar(
     val brush = remember(seed) {
         val hash = abs(seed.hashCode())
         // Narrow band: wide enough to tell people apart, tight enough that no
-        // avatar drifts out of the brand's violet range into pink.
-        val hue = 254f + (hash % 26)
+        // avatar drifts out of the brand's magenta-to-violet range.
+        val hue = 288f + (hash % 42)
         Brush.linearGradient(
             listOf(
                 Color.hsl(hue, 0.55f, 0.42f),
