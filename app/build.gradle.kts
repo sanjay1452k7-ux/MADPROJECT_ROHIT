@@ -20,6 +20,18 @@ plugins {
 val debugApiBaseUrl: String =
     (project.findProperty("citApiBaseUrl") as String?) ?: "http://127.0.0.1:3000/"
 
+/**
+ * Where a release build looks for the service. Overridable so the same source
+ * tree can be built for staging and for production:
+ *
+ *   ./gradlew :app:assembleRelease -PcitReleaseApiBaseUrl=https://staging.example/
+ *
+ * It must be HTTPS: release builds carry no cleartext exception.
+ */
+val releaseApiBaseUrl: String =
+    (project.findProperty("citReleaseApiBaseUrl") as String?)
+        ?: "https://attendance.citchennai.net/"
+
 android {
     namespace = "com.cit.attendance"
     compileSdk = 37
@@ -48,7 +60,7 @@ android {
         release {
             // Deployments must point at a real HTTPS host; there is no cleartext
             // network configuration outside debug builds.
-            buildConfigField("String", "API_BASE_URL", "\"https://attendance.citchennai.net/\"")
+            buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrl\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

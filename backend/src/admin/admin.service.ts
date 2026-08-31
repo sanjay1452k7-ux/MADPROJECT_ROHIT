@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AttendanceStatus } from '@prisma/client';
+import { AttendanceStatsService, percentageOf } from '../common/attendance-stats.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly stats: AttendanceStatsService,
   ) {}
 
   private get threshold(): number {
@@ -29,22 +31,19 @@ export class AdminService {
 
     const students = departments.flatMap((d) => d.classSections.flatMap((c) => c.students));
 
-    const measurements = await Promise.all(
-      students.map(async (student) => {
-        const [held, attended] = await Promise.all([
-          this.prisma.attendanceRecord.count({ where: { studentId: student.id } }),
-          this.prisma.attendanceRecord.count({
-            where: { studentId: student.id, status: { not: AttendanceStatus.ABSENT } },
-          }),
-        ]);
-        return {
-          studentId: student.id,
-          classSectionId: student.classSectionId,
-          held,
-          percentage: held === 0 ? 0 : Math.round((attended / held) * 1000) / 10,
-        };
-      }),
-    );
+    // One grouped query for the whole institution.
+    const totals = await this.stats.perStudent({
+      studentId: { in: students.map((s) => s.id) },
+    });
+    const measurements = students.map((student) => {
+      const entry = totals.get(student.id);
+      return {
+        studentId: student.id,
+        classSectionId: student.classSectionId,
+        held: entry?.held ?? 0,
+        percentage: percentageOf(entry),
+      };
+    });
 
     const measured = measurements.filter((m) => m.held > 0);
     const average =

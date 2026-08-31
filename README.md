@@ -3,10 +3,21 @@
 Native Android application for Chennai Institute of Technology (Computer Science
 and Engineering). Kotlin, Jetpack Compose, Clean Architecture + MVVM.
 
-> **Milestone 3 of 4.** Analytics, charts, the attendance calendar, risk
-> scoring, notifications and PDF/Excel reports are complete, on top of the
-> Milestone 2 QR workflow. Security hardening, performance and final polish are
-> Milestone 4.
+> **Complete — all four milestones.** Premium interface and branding, the
+> QR attendance workflow against a real NestJS/PostgreSQL backend, analytics
+> and reporting, and a final pass over security, performance, accessibility and
+> documentation.
+
+Full documentation is in [`docs/`](docs/):
+[Architecture](docs/ARCHITECTURE.md) ·
+[Database](docs/DATABASE.md) ·
+[API](docs/API.md) ·
+[Testing](docs/TESTING.md) ·
+[Setup](docs/SETUP.md) ·
+[Deployment](docs/DEPLOYMENT.md) ·
+[Limitations](docs/LIMITATIONS.md) ·
+[Future work](docs/FUTURE.md) ·
+[Demo script](docs/DEMO.md)
 
 ## Running it
 
@@ -81,7 +92,13 @@ Backend:
 cd backend && npx tsc --noEmit && npx jest && npm run build
 ```
 
-### Milestone 3 results
+End-to-end, against a running backend and a seeded database:
+
+```bash
+bash scripts/e2e/milestone4.sh
+```
+
+### Milestone 4 results
 
 | Check | Result |
 | --- | --- |
@@ -89,15 +106,41 @@ cd backend && npx tsc --noEmit && npx jest && npm run build
 | Backend unit tests (risk engine) | 12 passed |
 | Android unit tests | 43 passed |
 | Compose UI tests (on device) | 13 passed |
-| Android lint | 0 errors, 0 warnings |
+| Android lint | 0 findings |
 | Milestone 2 regression suite | 35/35 |
-| Milestone 3 suite | 36/36 |
-| Camera bind / release / rebind | Verified on device |
-| Camera permission grant / denial / revocation | Verified on device |
+| Milestone 3 regression suite | 36/36 |
+| Milestone 4 failure matrix | 45/45 |
+| Release build with R8 | Builds, installs, launches |
+| Large font scale on a compact screen | Verified on device |
 
-The Milestone 3 suite covers analytics scoping, figure consistency, the honesty
-of the risk engine's self-description, absence recording on session close, the
-notifications it raises, and all eight report type/format combinations.
+Run each end-to-end suite on its own — sign-in is rate limited to ten per
+minute, and several suites back to back will exhaust it.
+
+The Milestone 4 suite is the failure matrix: invalid, expired, replayed and
+duplicate QR codes; unauthorised roles on every protected route; closed and
+double-closed sessions; malformed input; the security headers; and the audit
+trail's integrity. The cases and their outcomes are tabulated in
+[docs/TESTING.md](docs/TESTING.md).
+
+### What Milestone 4 changed
+
+- **Audit trail made readable.** Every entry already named the acting account;
+  it had no reader. Administrators now see it under Insights → Activity, and
+  the endpoint refuses everyone else.
+- **Query aggregation.** Dashboards counted each student's records in a loop.
+  Grouped aggregation in the database made admin analytics 436 ms → 10 ms and
+  teacher analytics 207 ms → 92 ms, with cost no longer growing with cohort
+  size.
+- **Cache policy.** Set in middleware rather than an interceptor, so *error*
+  responses carry it too — a rejected sign-in is the response that most needs
+  `no-store`.
+- **Offline reads.** An 8 MB client cache serves GETs when the network is
+  unreachable, and rethrows the original failure when nothing is stored. Writes
+  are never served from cache.
+- **API hardening.** CORS closed by default, six security headers, `X-Powered-By`
+  removed, and throttles on minting and scanning.
+- **Accessibility.** Live-region announcements when a scan resolves, and minimum
+  touch targets on the roster and calendar.
 
 ## Demo accounts
 
@@ -239,21 +282,23 @@ core/
   common/         Outcome + AppError — the closed set of failures
   designsystem/   theme tokens, components, brand marks (CIT emblem, butterfly)
   navigation/     routes and the single NavHost
+  network/        Retrofit, interceptors, token refresh, offline cache
   security/       Android Keystore AES-GCM encryption
   ui/             UiState, error wording, locale-aware formatting
 domain/
   config/ model/ repository/ usecase/
 data/
-  demo/           the seeded Milestone 1 dataset
   local/          encrypted session storage
-  repository/     in-memory implementations of the domain interfaces
+  mapper/         DTO to domain conversion
+  repository/     Retrofit-backed implementations of the domain interfaces
 feature/
   splash/ auth/ shell/ student/ teacher/ admin/ analytics/
-di/               Hilt modules — the only place that knows data is mocked
+di/               Hilt modules — the only place that knows which data source is in use
 ```
 
-`di/RepositoryModule.kt` is the seam: Milestone 2 rebinds each interface to a
-Retrofit-backed implementation there, and nothing else changes.
+`di/RepositoryModule.kt` is the seam. Milestone 1 bound each domain interface to
+an in-memory implementation; Milestone 2 rebound them to Retrofit-backed ones
+there, and no screen or ViewModel changed.
 
 ## Toolchain
 

@@ -16,6 +16,18 @@ export enum AuditAction {
   REPORT_GENERATED = 'REPORT_GENERATED',
 }
 
+/** One audit row, resolved for display. */
+export interface AuditEntry {
+  id: string;
+  action: string;
+  actor: string;
+  actorRole: string | null;
+  entityType: string;
+  entityId: string | null;
+  metadata: unknown;
+  createdAt: string;
+}
+
 /**
  * Append-only audit trail.
  *
@@ -49,4 +61,38 @@ export class AuditService {
       this.logger.error(`Failed to write audit log for ${params.action}`, error as Error);
     }
   }
+
+  /**
+   * The most recent entries, newest first.
+   *
+   * A trail nobody can read is not an accountability measure, so this exists to
+   * be inspected - but only by an administrator (Section 35). The actor is
+   * resolved to a name here rather than exposing the raw account id.
+   */
+  async recent(limit: number): Promise<AuditEntry[]> {
+    const capped = Math.min(Math.max(limit, 1), MAX_AUDIT_PAGE);
+
+    const rows = await this.prisma.auditLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: capped,
+      include: {
+        actor: { select: { role: true, displayName: true } },
+      },
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      action: row.action,
+      // A deleted account leaves its trail behind; the row stays readable.
+      actor: row.actor?.displayName ?? 'Deleted account',
+      actorRole: row.actor?.role ?? null,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      metadata: row.metadata,
+      createdAt: row.createdAt.toISOString(),
+    }));
+  }
 }
+
+/** Bounds one request, so the trail cannot be drained in a single call. */
+const MAX_AUDIT_PAGE = 200;

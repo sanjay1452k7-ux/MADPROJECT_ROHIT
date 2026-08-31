@@ -14,6 +14,18 @@ import { formatClassName } from '../common/class-label';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
+/**
+ * Who performed an action.
+ *
+ * [userId] is what the audit trail records - Section 35 requires an actor, and
+ * a profile id alone does not identify the account that acted. [profileId] is
+ * the student or teacher row the action is scoped to.
+ */
+export interface Actor {
+  userId: string;
+  profileId: string;
+}
+
 /** What the student app renders as a QR code. */
 export interface MintedTokenDto {
   token: string;
@@ -63,7 +75,8 @@ export class AttendanceService {
 
   // ---------------------------------------------------------------- sessions
 
-  async startSession(teacherProfileId: string, subjectId: string, classSectionId: string) {
+  async startSession(actor: Actor, subjectId: string, classSectionId: string) {
+    const teacherProfileId = actor.profileId;
     const teaches = await this.prisma.teacherSubject.findUnique({
       where: { teacherId_subjectId: { teacherId: teacherProfileId, subjectId } },
     });
@@ -85,7 +98,7 @@ export class AttendanceService {
     });
 
     await this.audit.record({
-      actorId: null,
+      actorId: actor.userId,
       action: AuditAction.SESSION_STARTED,
       entityType: 'AttendanceSession',
       entityId: session.id,
@@ -95,7 +108,8 @@ export class AttendanceService {
     return this.sessionSummary(session.id);
   }
 
-  async closeSession(teacherProfileId: string, sessionId: string) {
+  async closeSession(actor: Actor, sessionId: string) {
+    const teacherProfileId = actor.profileId;
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) {
       throw ApiError.notFound('That attendance session does not exist.');
@@ -110,7 +124,7 @@ export class AttendanceService {
     // Closing the session is what turns "not scanned" into a recorded absence.
     // Without this, an unmarked student would simply be missing from the data
     // and every percentage would silently count only the classes they attended.
-    const absentCount = await this.recordAbsencesFor(sessionId, teacherProfileId);
+    const absentCount = await this.recordAbsencesFor(sessionId, actor);
 
     await this.prisma.attendanceSession.update({
       where: { id: sessionId },
@@ -118,7 +132,7 @@ export class AttendanceService {
     });
 
     await this.audit.record({
-      actorId: null,
+      actorId: actor.userId,
       action: AuditAction.SESSION_CLOSED,
       entityType: 'AttendanceSession',
       entityId: sessionId,
@@ -179,7 +193,8 @@ export class AttendanceService {
    * present. Only the SHA-256 hash is persisted, so reading the table does not
    * yield a scannable code.
    */
-  async mintToken(studentProfileId: string, sessionId: string): Promise<MintedTokenDto> {
+  async mintToken(actor: Actor, sessionId: string): Promise<MintedTokenDto> {
+    const studentProfileId = actor.profileId;
     const session = await this.prisma.attendanceSession.findUnique({
       where: { id: sessionId },
       include: { classSection: true },
@@ -231,7 +246,7 @@ export class AttendanceService {
     });
 
     await this.audit.record({
-      actorId: null,
+      actorId: actor.userId,
       action: AuditAction.QR_MINTED,
       entityType: 'AttendanceToken',
       entityId: sessionId,
@@ -253,10 +268,11 @@ export class AttendanceService {
    * still has to look at the student and confirm (Section 17).
    */
   async verifyToken(
-    teacherProfileId: string,
+    actor: Actor,
     sessionId: string,
     rawToken: string,
   ): Promise<VerifiedStudentDto> {
+    const teacherProfileId = actor.profileId;
     const session = await this.prisma.attendanceSession.findUnique({
       where: { id: sessionId },
       include: { subject: true },
@@ -279,21 +295,21 @@ export class AttendanceService {
     });
 
     if (!stored) {
-      await this.auditRejection(sessionId, 'QR_INVALID');
+      await this.auditRejection(actor, sessionId, 'QR_INVALID');
       throw ApiError.qrInvalid();
     }
     // A code minted for a different session must not work here, even if it is
     // otherwise valid.
     if (stored.sessionId !== sessionId) {
-      await this.auditRejection(sessionId, 'WRONG_SESSION');
+      await this.auditRejection(actor, sessionId, 'WRONG_SESSION');
       throw ApiError.qrInvalid();
     }
     if (stored.usedAt !== null) {
-      await this.auditRejection(sessionId, 'QR_ALREADY_USED');
+      await this.auditRejection(actor, sessionId, 'QR_ALREADY_USED');
       throw ApiError.qrAlreadyUsed();
     }
     if (stored.expiresAt <= new Date()) {
-      await this.auditRejection(sessionId, 'QR_EXPIRED');
+      await this.auditRejection(actor, sessionId, 'QR_EXPIRED');
       throw ApiError.qrExpired();
     }
 
@@ -303,7 +319,7 @@ export class AttendanceService {
       },
     });
     if (!enrolled) {
-      await this.auditRejection(sessionId, 'NOT_ENROLLED');
+      await this.auditRejection(actor, sessionId, 'NOT_ENROLLED');
       throw ApiError.notEnrolled();
     }
 
@@ -327,7 +343,7 @@ export class AttendanceService {
     });
 
     await this.audit.record({
-      actorId: null,
+      actorId: actor.userId,
       action: AuditAction.QR_SCANNED,
       entityType: 'AttendanceToken',
       entityId: stored.id,
@@ -363,7 +379,8 @@ export class AttendanceService {
    * duplicate under concurrent taps; the pre-check only produces a nicer
    * message in the common case.
    */
-  async markAttendance(teacherProfileId: string, sessionId: string, verificationId: string) {
+  async markAttendance(actor: Actor, sessionId: string, verificationId: string) {
+    const teacherProfileId = actor.profileId;
     const session = await this.prisma.attendanceSession.findUnique({
       where: { id: sessionId },
       include: { subject: true },
@@ -410,7 +427,7 @@ export class AttendanceService {
       );
 
       await this.audit.record({
-        actorId: null,
+        actorId: actor.userId,
         action: AuditAction.ATTENDANCE_MARKED,
         entityType: 'AttendanceRecord',
         entityId: record.id,
@@ -445,12 +462,13 @@ export class AttendanceService {
 
   /** Manual fallback, recorded as such so an audit can tell it apart. */
   async markManually(
-    teacherProfileId: string,
+    actor: Actor,
     sessionId: string,
     studentId: string,
     status: AttendanceStatus,
     reason?: string,
   ) {
+    const teacherProfileId = actor.profileId;
     const session = await this.prisma.attendanceSession.findUnique({
       where: { id: sessionId },
       include: { subject: true },
@@ -485,7 +503,7 @@ export class AttendanceService {
       });
 
       await this.audit.record({
-        actorId: null,
+        actorId: actor.userId,
         action: AuditAction.ATTENDANCE_MANUAL,
         entityType: 'AttendanceRecord',
         entityId: record.id,
@@ -562,7 +580,8 @@ export class AttendanceService {
    * between the read and the write is not overwritten - the unique constraint
    * on (session, student) is the arbiter, not this code.
    */
-  private async recordAbsencesFor(sessionId: string, teacherId: string): Promise<number> {
+  private async recordAbsencesFor(sessionId: string, actor: Actor): Promise<number> {
+    const teacherId = actor.profileId;
     const session = await this.prisma.attendanceSession.findUnique({
       where: { id: sessionId },
       include: { subject: true },
@@ -692,9 +711,13 @@ export class AttendanceService {
     await this.notifications.notify({ userId: student.userId, type, title, message });
   }
 
-  private async auditRejection(sessionId: string, reason: string): Promise<void> {
+  private async auditRejection(
+    actor: Actor,
+    sessionId: string,
+    reason: string,
+  ): Promise<void> {
     await this.audit.record({
-      actorId: null,
+      actorId: actor.userId,
       action: AuditAction.QR_REJECTED,
       entityType: 'AttendanceSession',
       entityId: sessionId,

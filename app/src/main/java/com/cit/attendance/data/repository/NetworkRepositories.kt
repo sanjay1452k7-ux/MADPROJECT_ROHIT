@@ -15,6 +15,7 @@ import com.cit.attendance.domain.model.AdminDashboard
 import com.cit.attendance.domain.model.AttendanceMarkResult
 import com.cit.attendance.domain.model.AttendanceQrToken
 import com.cit.attendance.domain.model.AttendanceRecord
+import com.cit.attendance.domain.model.AuditEntry
 import com.cit.attendance.domain.model.AttendanceStatus
 import com.cit.attendance.domain.model.LiveAttendanceSession
 import com.cit.attendance.domain.model.NotificationItem
@@ -79,6 +80,9 @@ class NetworkAdminRepository @Inject constructor(
     // id is not sent: the token decides whose figures come back.
     override suspend fun getDashboard(adminId: String): Outcome<AdminDashboard> =
         errors.execute { api.adminDashboard() }.map { it.toDomain() }
+
+    override suspend fun getAuditTrail(limit: Int): Outcome<List<AuditEntry>> =
+        errors.execute { api.auditTrail(limit) }.map { page -> page.entries.map { it.toDomain() } }
 }
 
 @Singleton

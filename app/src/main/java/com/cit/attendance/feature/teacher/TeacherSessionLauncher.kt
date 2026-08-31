@@ -2,6 +2,7 @@ package com.cit.attendance.feature.teacher
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -270,7 +271,9 @@ private fun RosterRow(
                 SecondaryButton(
                     text = "Mark",
                     onClick = onMarkManually,
-                    modifier = Modifier.fillMaxWidth(0.32f),
+                    modifier = Modifier
+                        .fillMaxWidth(0.32f)
+                        .defaultMinSize(minHeight = AppTheme.spacing.minTouchTarget),
                 )
             }
         }

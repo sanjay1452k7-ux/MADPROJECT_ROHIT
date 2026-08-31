@@ -3,6 +3,7 @@ package com.cit.attendance.data.mapper
 import com.cit.attendance.core.network.dto.ActiveSessionDto
 import com.cit.attendance.core.network.dto.AdminDashboardDto
 import com.cit.attendance.core.network.dto.AttendanceRecordDto
+import com.cit.attendance.core.network.dto.AuditEntryDto
 import com.cit.attendance.core.network.dto.MarkResultDto
 import com.cit.attendance.core.network.dto.MintedTokenDto
 import com.cit.attendance.core.network.dto.NotificationDto
@@ -22,6 +23,8 @@ import com.cit.attendance.domain.model.AttendanceRecord
 import com.cit.attendance.domain.model.AttendanceStanding
 import com.cit.attendance.domain.model.AttendanceStatus
 import com.cit.attendance.domain.model.AttendanceSummary
+import com.cit.attendance.domain.model.AuditActionKind
+import com.cit.attendance.domain.model.AuditEntry
 import com.cit.attendance.domain.model.ClassSection
 import com.cit.attendance.domain.model.DepartmentStat
 import com.cit.attendance.domain.model.LiveAttendanceSession
@@ -37,6 +40,7 @@ import com.cit.attendance.domain.model.SubjectAttendance
 import com.cit.attendance.domain.model.Teacher
 import com.cit.attendance.domain.model.TeacherDashboard
 import com.cit.attendance.domain.model.TeachingCohort
+import com.cit.attendance.domain.model.UserRole
 import com.cit.attendance.domain.model.VerifiedStudent
 import java.time.Instant
 import java.time.LocalDate
@@ -308,3 +312,49 @@ internal fun MarkResultDto.toDomain(): AttendanceMarkResult = AttendanceMarkResu
     subjectName = subjectName,
     markedAtLabel = formatInstantAsTime(markedAt) ?: "",
 )
+
+/**
+ * Turns one audit row into something a person can read at a glance.
+ *
+ * The server stores the entity type and id, which are precise but meaningless
+ * on screen; the summary says what happened in words instead.
+ */
+internal fun AuditEntryDto.toDomain(): AuditEntry {
+    val kind = when (action) {
+        "SIGN_IN" -> AuditActionKind.SignIn
+        "SIGN_OUT" -> AuditActionKind.SignOut
+        "SESSION_STARTED" -> AuditActionKind.SessionStarted
+        "SESSION_CLOSED" -> AuditActionKind.SessionClosed
+        "QR_MINTED" -> AuditActionKind.QrMinted
+        "QR_SCANNED" -> AuditActionKind.QrScanned
+        "QR_REJECTED" -> AuditActionKind.QrRejected
+        "ATTENDANCE_MARKED" -> AuditActionKind.AttendanceMarked
+        "ATTENDANCE_MANUAL" -> AuditActionKind.AttendanceManual
+        "REPORT_GENERATED" -> AuditActionKind.ReportGenerated
+        else -> AuditActionKind.Other
+    }
+
+    return AuditEntry(
+        id = id,
+        action = kind,
+        actor = actor,
+        actorRole = actorRole?.let { UserRole.fromStorageKey(it) },
+        summary = summaryFor(kind, action),
+        occurredAt = createdAt,
+    )
+}
+
+private fun summaryFor(kind: AuditActionKind, rawAction: String): String = when (kind) {
+    AuditActionKind.SignIn -> "Signed in"
+    AuditActionKind.SignOut -> "Signed out"
+    AuditActionKind.SessionStarted -> "Opened an attendance session"
+    AuditActionKind.SessionClosed -> "Closed an attendance session"
+    AuditActionKind.QrMinted -> "Generated an attendance code"
+    AuditActionKind.QrScanned -> "Scanned an attendance code"
+    AuditActionKind.QrRejected -> "A scanned code was rejected"
+    AuditActionKind.AttendanceMarked -> "Confirmed a student present"
+    AuditActionKind.AttendanceManual -> "Recorded attendance manually"
+    AuditActionKind.ReportGenerated -> "Generated a report"
+    // Unknown to this build, but still shown rather than hidden.
+    AuditActionKind.Other -> rawAction.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+}

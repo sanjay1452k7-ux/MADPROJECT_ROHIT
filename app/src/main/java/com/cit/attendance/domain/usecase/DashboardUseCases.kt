@@ -3,6 +3,7 @@ package com.cit.attendance.domain.usecase
 import com.cit.attendance.core.common.Outcome
 import com.cit.attendance.domain.model.AdminDashboard
 import com.cit.attendance.domain.model.AttendanceRecord
+import com.cit.attendance.domain.model.AuditEntry
 import com.cit.attendance.domain.model.NotificationItem
 import com.cit.attendance.domain.model.Student
 import com.cit.attendance.domain.model.StudentDashboard
@@ -47,6 +48,20 @@ class GetAdminDashboardUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(adminId: String): Outcome<AdminDashboard> =
         repository.getDashboard(adminId)
+}
+
+/**
+ * Reads the audit trail. The page size is fixed here rather than exposed to the
+ * screen: the trail is for review, not for bulk export.
+ */
+class GetAuditTrailUseCase @Inject constructor(
+    private val repository: AdminRepository,
+) {
+    suspend operator fun invoke(): Outcome<List<AuditEntry>> = repository.getAuditTrail(PAGE_SIZE)
+
+    private companion object {
+        const val PAGE_SIZE = 100
+    }
 }
 
 class GetNotificationsUseCase @Inject constructor(

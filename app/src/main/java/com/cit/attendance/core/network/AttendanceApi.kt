@@ -3,6 +3,7 @@ package com.cit.attendance.core.network
 import com.cit.attendance.core.network.dto.ActiveSessionDto
 import com.cit.attendance.core.network.dto.AdminAnalyticsDto
 import com.cit.attendance.core.network.dto.AdminDashboardDto
+import com.cit.attendance.core.network.dto.AuditPageDto
 import com.cit.attendance.core.network.dto.AttendanceRecordDto
 import com.cit.attendance.core.network.dto.AuthTokensDto
 import com.cit.attendance.core.network.dto.AuthUserDto
@@ -30,6 +31,7 @@ import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * The attendance service contract.
@@ -130,6 +132,10 @@ interface AttendanceApi {
 
     @GET("admin/dashboard")
     suspend fun adminDashboard(): AdminDashboardDto
+
+    /** The audit trail. The server refuses this for anyone but an administrator. */
+    @GET("admin/audit")
+    suspend fun auditTrail(@Query("limit") limit: Int): AuditPageDto
 
     // ------------------------------------------------------ notifications
 

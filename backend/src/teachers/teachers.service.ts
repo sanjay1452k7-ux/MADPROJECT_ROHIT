@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AttendanceStatus, SessionStatus } from '@prisma/client';
+import { SessionStatus } from '@prisma/client';
 import { ApiError } from '../common/api-error';
+import { AttendanceStatsService, percentageOf } from '../common/attendance-stats.service';
 import { formatClassName } from '../common/class-label';
 import { PrismaService } from '../common/prisma/prisma.service';
 
@@ -10,6 +11,7 @@ export class TeachersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly stats: AttendanceStatsService,
   ) {}
 
   private get threshold(): number {
@@ -79,21 +81,18 @@ export class TeachersService {
     });
     const uniqueStudents = new Map(enrollments.map((e) => [e.studentId, e.student]));
 
-    const percentages = await Promise.all(
-      [...uniqueStudents.values()].map(async (student) => {
-        const [held, attended] = await Promise.all([
-          this.prisma.attendanceRecord.count({ where: { studentId: student.id } }),
-          this.prisma.attendanceRecord.count({
-            where: { studentId: student.id, status: { not: AttendanceStatus.ABSENT } },
-          }),
-        ]);
-        return {
-          student,
-          held,
-          percentage: held === 0 ? 0 : Math.round((attended / held) * 1000) / 10,
-        };
-      }),
-    );
+    // One grouped query for the whole cohort, rather than two per student.
+    const totals = await this.stats.perStudent({
+      studentId: { in: [...uniqueStudents.keys()] },
+    });
+    const percentages = [...uniqueStudents.values()].map((student) => {
+      const entry = totals.get(student.id);
+      return {
+        student,
+        held: entry?.held ?? 0,
+        percentage: percentageOf(entry),
+      };
+    });
 
     // A student with no recorded classes is unmeasured, not "at risk".
     const measured = percentages.filter((p) => p.held > 0);

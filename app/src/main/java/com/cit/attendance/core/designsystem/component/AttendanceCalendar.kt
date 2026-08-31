@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -191,6 +192,9 @@ private fun CalendarCell(
     Box(
         modifier = Modifier
             .padding(2.dp)
+            // Square by width, but never below the minimum touch target: on a
+            // narrow phone a seventh of the width is smaller than a fingertip.
+            .sizeIn(minHeight = AppTheme.spacing.minTouchTarget)
             .aspectRatio(1f)
             .clip(AppTheme.shapes.small)
             .background(fill)

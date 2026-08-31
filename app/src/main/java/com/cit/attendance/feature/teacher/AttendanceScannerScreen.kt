@@ -47,6 +47,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -280,6 +283,9 @@ private fun StudentVerificationCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // The panel replaces the camera without any navigation, so a
+                // screen reader is told the student has been identified.
+                .semantics { liveRegion = LiveRegionMode.Assertive }
                 .verticalScroll(rememberScrollState())
                 .padding(spacing.screenGutter),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -374,6 +380,7 @@ private fun AttendanceRecordedPanel(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .semantics { liveRegion = LiveRegionMode.Assertive }
                 .padding(AppTheme.spacing.screenGutter),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
@@ -437,6 +444,8 @@ private fun ScanRejectedPanel(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // A refused code must be announced, not just shown.
+                .semantics { liveRegion = LiveRegionMode.Assertive }
                 .padding(AppTheme.spacing.screenGutter),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),

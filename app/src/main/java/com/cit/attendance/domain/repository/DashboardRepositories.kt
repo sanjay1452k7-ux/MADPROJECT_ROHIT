@@ -3,6 +3,7 @@ package com.cit.attendance.domain.repository
 import com.cit.attendance.core.common.Outcome
 import com.cit.attendance.domain.model.AdminDashboard
 import com.cit.attendance.domain.model.AttendanceRecord
+import com.cit.attendance.domain.model.AuditEntry
 import com.cit.attendance.domain.model.NotificationItem
 import com.cit.attendance.domain.model.Student
 import com.cit.attendance.domain.model.StudentDashboard
@@ -32,6 +33,9 @@ interface TeacherRepository {
 /** Institution-wide reads (Section 16). */
 interface AdminRepository {
     suspend fun getDashboard(adminId: String): Outcome<AdminDashboard>
+
+    /** The audit trail, newest first (Section 35). */
+    suspend fun getAuditTrail(limit: Int): Outcome<List<AuditEntry>>
 }
 
 /**

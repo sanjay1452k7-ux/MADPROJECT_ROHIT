@@ -312,3 +312,19 @@ data class NotificationDto(
     val timestamp: String,
     @SerialName("isRead") val isRead: Boolean,
 )
+
+@Serializable
+data class AuditPageDto(
+    val entries: List<AuditEntryDto>,
+)
+
+@Serializable
+data class AuditEntryDto(
+    val id: String,
+    val action: String,
+    val actor: String,
+    val actorRole: String? = null,
+    val entityType: String,
+    val entityId: String? = null,
+    val createdAt: String,
+)

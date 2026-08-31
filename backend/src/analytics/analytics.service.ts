@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AttendanceStatus } from '@prisma/client';
 import { ApiError } from '../common/api-error';
+import { AttendanceStatsService, percentageOf } from '../common/attendance-stats.service';
 import { formatClassName } from '../common/class-label';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { RiskService } from '../risk/risk.service';
@@ -32,6 +33,7 @@ export class AnalyticsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly risk: RiskService,
+    private readonly stats: AttendanceStatsService,
   ) {}
 
   private get threshold(): number {
@@ -91,25 +93,18 @@ export class AnalyticsService {
 
     const subjectIds = teacher.subjects.map((s) => s.subjectId);
 
-    const records = await this.prisma.attendanceRecord.findMany({
-      where: { subjectId: { in: subjectIds } },
-      include: { subject: true },
-      orderBy: { markedAt: 'asc' },
-    });
+    // Everything below is aggregated by the database rather than by loading the
+    // teacher's whole record set into memory.
+    const [byStudent, monthly, absentee, subjectTotals, subjects] = await Promise.all([
+      this.stats.perStudent({ subjectId: { in: subjectIds } }),
+      this.stats.monthlyTrend({ subjectIds }),
+      this.stats.dailyAbsences(subjectIds, 14),
+      this.stats.perSubject({ subjectId: { in: subjectIds } }),
+      this.prisma.subject.findMany({ where: { id: { in: subjectIds } } }),
+    ]);
 
-    const held = records.length;
-    const attended = records.filter((r) => r.status !== AttendanceStatus.ABSENT).length;
-
-    // Per-student figures, restricted to the subjects this teacher teaches.
-    const byStudent = new Map<string, { held: number; attended: number }>();
-    for (const record of records) {
-      const entry = byStudent.get(record.studentId) ?? { held: 0, attended: 0 };
-      entry.held += 1;
-      if (record.status !== AttendanceStatus.ABSENT) {
-        entry.attended += 1;
-      }
-      byStudent.set(record.studentId, entry);
-    }
+    const held = monthly.reduce((sum, m) => sum + m.held, 0);
+    const attended = monthly.reduce((sum, m) => sum + m.attended, 0);
 
     const studentIds = [...byStudent.keys()];
     const students = await this.prisma.student.findMany({
@@ -129,18 +124,27 @@ export class AnalyticsService {
     return {
       classAverage: percentage(attended, held),
       threshold: this.threshold,
-      monthlyTrend: monthlyTrend(records),
-      subjectAverages: this.subjectBreakdown(records).map((s) => ({
-        subjectId: s.subjectId,
-        subjectCode: s.subjectCode,
-        subjectName: s.subjectName,
-        percentage: s.percentage,
-        held: s.held,
-        attended: s.attended,
-      })),
+      monthlyTrend: trendPointsFrom(monthly),
+      subjectAverages: subjects
+        .map((subject) => {
+          const totals = subjectTotals.get(subject.id);
+          return {
+            subjectId: subject.id,
+            subjectCode: subject.code,
+            subjectName: subject.name,
+            percentage: percentageOf(totals),
+            held: totals?.held ?? 0,
+            attended: totals?.attended ?? 0,
+          };
+        })
+        .sort((a, b) => a.subjectCode.localeCompare(b.subjectCode)),
       // How many students were absent per session date, which is the shape a
       // teacher actually asks about ("was Tuesday unusually empty?").
-      absenteeTrend: absenteeTrend(records),
+      absenteeTrend: absentee.map((point) => ({
+        date: point.date.toISOString().slice(0, 10),
+        absent: point.absent,
+        held: point.held,
+      })),
       studentsAtRisk: atRiskIds
         .map((id) => {
           const student = studentById.get(id)!;
@@ -175,26 +179,18 @@ export class AnalyticsService {
       },
     });
 
-    const records = await this.prisma.attendanceRecord.findMany({
-      include: { subject: true, student: { include: { classSection: true } } },
-      orderBy: { markedAt: 'asc' },
-    });
+    // Aggregated by the database: an institution-wide chart must not require
+    // loading every attendance row into the service.
+    const [byStudent, monthly] = await Promise.all([
+      this.stats.perStudent(),
+      this.stats.monthlyTrend(),
+    ]);
 
-    const held = records.length;
-    const attended = records.filter((r) => r.status !== AttendanceStatus.ABSENT).length;
-
-    const byStudent = new Map<string, { held: number; attended: number }>();
-    for (const record of records) {
-      const entry = byStudent.get(record.studentId) ?? { held: 0, attended: 0 };
-      entry.held += 1;
-      if (record.status !== AttendanceStatus.ABSENT) {
-        entry.attended += 1;
-      }
-      byStudent.set(record.studentId, entry);
-    }
+    const held = monthly.reduce((sum, m) => sum + m.held, 0);
+    const attended = monthly.reduce((sum, m) => sum + m.attended, 0);
 
     const belowThreshold = [...byStudent.entries()]
-      .filter(([, e]) => e.held > 0 && percentage(e.attended, e.held) < this.threshold)
+      .filter(([, e]) => e.held > 0 && percentageOf(e) < this.threshold)
       .map(([id]) => id);
 
     const departmentStats = departments.map((department) => {
@@ -229,7 +225,7 @@ export class AnalyticsService {
       threshold: this.threshold,
       totalStudents: byStudent.size,
       studentsBelowThreshold: belowThreshold.length,
-      monthlyTrend: monthlyTrend(records),
+      monthlyTrend: trendPointsFrom(monthly),
       departmentStats,
     };
   }
@@ -297,6 +293,19 @@ const MONTH_LABELS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
+/** Formats database-aggregated months for the trend chart. */
+function trendPointsFrom(
+  months: Array<{ month: Date; held: number; attended: number }>,
+): TrendPoint[] {
+  return months.map((bucket) => ({
+    period: `${bucket.month.getFullYear()}-${String(bucket.month.getMonth() + 1).padStart(2, '0')}`,
+    label: `${MONTH_LABELS[bucket.month.getMonth()]} ${bucket.month.getFullYear()}`,
+    held: bucket.held,
+    attended: bucket.attended,
+    percentage: percentage(bucket.attended, bucket.held),
+  }));
+}
+
 /** Groups records by calendar month, oldest first (Section 28). */
 function monthlyTrend(
   records: Array<{ markedAt: Date; status: AttendanceStatus }>,
@@ -323,28 +332,6 @@ function monthlyTrend(
       attended: bucket.attended,
       percentage: percentage(bucket.attended, bucket.held),
     }));
-}
-
-/** Absences per teaching day, oldest first. */
-function absenteeTrend(
-  records: Array<{ markedAt: Date; status: AttendanceStatus }>,
-): Array<{ date: string; absent: number; held: number }> {
-  const buckets = new Map<string, { absent: number; held: number }>();
-
-  for (const record of records) {
-    const date = record.markedAt.toISOString().slice(0, 10);
-    const bucket = buckets.get(date) ?? { absent: 0, held: 0 };
-    bucket.held += 1;
-    if (record.status === AttendanceStatus.ABSENT) {
-      bucket.absent += 1;
-    }
-    buckets.set(date, bucket);
-  }
-
-  return [...buckets.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-14)
-    .map(([date, bucket]) => ({ date, absent: bucket.absent, held: bucket.held }));
 }
 
 /** One entry per day the student had any session (Section 28). */

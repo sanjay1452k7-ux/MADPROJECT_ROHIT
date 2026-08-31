@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AttendanceStatus } from '@prisma/client';
 import { ApiError } from '../common/api-error';
+import { AttendanceStatsService, percentageOf } from '../common/attendance-stats.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 
 /**
@@ -15,6 +16,7 @@ export class StudentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly stats: AttendanceStatsService,
   ) {}
 
   private get threshold(): number {
@@ -89,31 +91,21 @@ export class StudentsService {
       orderBy: { subject: { code: 'asc' } },
     });
 
-    return Promise.all(
-      enrollments.map(async (enrollment) => {
-        const [held, attended] = await Promise.all([
-          this.prisma.attendanceRecord.count({
-            where: { studentId, subjectId: enrollment.subjectId },
-          }),
-          this.prisma.attendanceRecord.count({
-            where: {
-              studentId,
-              subjectId: enrollment.subjectId,
-              status: { not: AttendanceStatus.ABSENT },
-            },
-          }),
-        ]);
+    // One grouped query across the student's subjects, rather than two per
+    // subject.
+    const totals = await this.stats.perSubject({ studentId });
 
-        return {
-          subjectId: enrollment.subject.id,
-          subjectCode: enrollment.subject.code,
-          subjectName: enrollment.subject.name,
-          attended,
-          held,
-          percentage: held === 0 ? 0 : Math.round((attended / held) * 1000) / 10,
-        };
-      }),
-    );
+    return enrollments.map((enrollment) => {
+      const entry = totals.get(enrollment.subjectId);
+      return {
+        subjectId: enrollment.subject.id,
+        subjectCode: enrollment.subject.code,
+        subjectName: enrollment.subject.name,
+        attended: entry?.attended ?? 0,
+        held: entry?.held ?? 0,
+        percentage: percentageOf(entry),
+      };
+    });
   }
 
   private async todaysClasses(classSectionId: string) {

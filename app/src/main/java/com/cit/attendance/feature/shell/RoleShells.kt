@@ -39,6 +39,7 @@ import com.cit.attendance.core.navigation.TeacherRoutes
 import com.cit.attendance.feature.admin.AdminOverviewScreen
 import com.cit.attendance.feature.admin.AdminPeopleScreen
 import com.cit.attendance.feature.admin.AdminProfileScreen
+import com.cit.attendance.feature.admin.AuditTrailScreen
 import com.cit.attendance.feature.admin.AdminViewModel
 import com.cit.attendance.feature.analytics.AdminAnalyticsScreen
 import com.cit.attendance.feature.analytics.ReportsScreen
@@ -315,7 +316,7 @@ private fun AdminInsights() {
 
     Column(modifier = Modifier.fillMaxSize()) {
         SegmentedTabs(
-            options = listOf("Analytics", "Reports"),
+            options = listOf("Analytics", "Reports", "Activity"),
             selectedIndex = segment,
             onSelect = { segment = it },
             modifier = Modifier.padding(
@@ -323,10 +324,11 @@ private fun AdminInsights() {
                 vertical = AppTheme.spacing.sm,
             ),
         )
-        if (segment == 0) {
-            AdminAnalyticsScreen()
-        } else {
-            ReportsScreen(availableTypes = staffReportTypes)
+        when (segment) {
+            0 -> AdminAnalyticsScreen()
+            1 -> ReportsScreen(availableTypes = staffReportTypes)
+            // The audit trail: who did what, readable only by an administrator.
+            else -> AuditTrailScreen()
         }
     }
 }
