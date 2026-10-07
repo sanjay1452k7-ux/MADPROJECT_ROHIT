@@ -18,7 +18,7 @@ plugins {
  * Release builds ignore this entirely and use HTTPS.
  */
 val debugApiBaseUrl: String =
-    (project.findProperty("citApiBaseUrl") as String?) ?: "http://127.0.0.1:3000/"
+    (project.findProperty("citApiBaseUrl") as String?) ?: "http://172.20.10.9:3000/"
 
 /**
  * Where a release build looks for the service. Overridable so the same source
